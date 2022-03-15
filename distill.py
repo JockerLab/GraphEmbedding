@@ -11,7 +11,7 @@ from network import NeuralNetwork
 
 train_loader = torch.utils.data.DataLoader(
     datasets.MNIST(
-        "mnist_data",
+        "data",
         train=True,
         download=True,
         transform=transforms.Compose(
@@ -24,7 +24,7 @@ train_loader = torch.utils.data.DataLoader(
 
 test_loader = torch.utils.data.DataLoader(
     datasets.MNIST(
-        "mnist_data",
+        "data",
         train=False,
         transform=transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
@@ -52,6 +52,9 @@ else:
     teacher_model = ModLeNet(in_channels=1, img_size=28)
     teacher_model.load_state_dict(torch.load("models/teacher.pt"))
     teacher_model.eval()
+
+    # print(ResNet18([4, 4, 4, 4, 4]))
+    # exit(0)
 
     student_model = NeuralNetwork()
 

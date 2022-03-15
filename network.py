@@ -87,9 +87,10 @@ if __name__ == '__main__':
     train_dataloader, test_dataloader = load_data()
     model = NeuralNetwork()
 
-    model.load_state_dict(torch.load("model.pth"))
-    model.eval()
-    print(model)
+    # model.load_state_dict(torch.load("models/model.pth"))
+    # model.eval()
+    # summary(model, input_size=(1, 28, 28))
+    # print(model)
 
     for i in range(len(args)):
         if args[i] == '--train':
