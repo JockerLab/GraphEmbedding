@@ -6,6 +6,10 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor, Lambda, Compose
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
+from torchvision.models import resnet101, densenet201, alexnet
+
+from models.converted_alexnet import ConvertedAlexNet
+from models.original_alexnet import AlexNet
 
 
 class NeuralNetwork(nn.Module):
@@ -25,15 +29,15 @@ class NeuralNetwork(nn.Module):
         return x
 
 
-def load_data():
-    training_data = datasets.MNIST(
+def load_data(dataset):
+    training_data = dataset(
         root="data",
         train=True,
         download=True,
         transform=ToTensor(),
     )
 
-    test_data = datasets.MNIST(
+    test_data = dataset(
         root="data",
         train=False,
         download=True,
@@ -84,8 +88,10 @@ def test(dataloader, model, loss_fn):
 if __name__ == '__main__':
     args = sys.argv[1:]
 
-    train_dataloader, test_dataloader = load_data()
-    model = NeuralNetwork()
+    # train_dataloader, test_dataloader = load_data(datasets.MNIST)
+    train_dataloader, test_dataloader = load_data(datasets.CIFAR10)
+    # model = NeuralNetwork()
+    model = AlexNet()
 
     # model.load_state_dict(torch.load("models/model.pth"))
     # model.eval()

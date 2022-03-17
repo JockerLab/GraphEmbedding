@@ -1,7 +1,9 @@
 from torchvision.models import resnet101, densenet201, alexnet, vgg19_bn, mnasnet1_3, squeezenet1_1
 from graph import NeuralNetworkGraph
 from torch import nn
+
 from network import NeuralNetwork
+from models.original_alexnet import AlexNet
 import torch
 import os
 import types
@@ -43,13 +45,14 @@ class Converter:
         self.node_to_operation = {}
         self.tabulation = '    '
         self.sequences = {1: [self.__choose_type(self.graph.nodes[0])]}
+        self.__graph_seq = {}
         self.node_to_sequence = {0: 1}
         self.__create_layers(0)
 
         with open(filepath, 'w') as file:
             self.__write_model_init(file, model_name)
             self.__write_layers(file)
-            #self.__create_forward(file)
+            self.__write_forward(file)
 
     def __select_layer(self, node):
         # TODO: не все параметры есть. Некоторых может не быть
@@ -104,8 +107,12 @@ class Converter:
                 continue
             node = self.graph.nodes[v]
             layer = self.__choose_type(node)
-            if len(edges) > 1 or len(self.graph.degree._pred[v]) > 1:
-                current_sequence = len(self.sequences) + 1
+            if len(edges) > 1 or len(self.graph.degree._pred[v]) > 1:  # TODO: find method for getting pred
+                new_sequence = len(self.sequences) + 1
+                edge_list = self.__graph_seq.get(current_sequence, [])
+                edge_list.append(new_sequence)
+                self.__graph_seq[current_sequence] = edge_list
+                current_sequence = new_sequence
             array = self.sequences.get(current_sequence, [])
             array.append(layer)
             self.sequences[current_sequence] = array
@@ -122,6 +129,21 @@ class Converter:
             for elem in value:
                 Converter.__write_line(file, elem + ',', self.tabulation * 3)
             Converter.__write_line(file, ')', self.tabulation * 2)
+        Converter.__write_line(file, '')
+
+    def __write_forward(self, file):
+        Converter.__write_line(file, 'def forward(self, x):', self.tabulation)
+        q = [1]
+        while len(q) > 0:
+            v = q[0]
+            q.pop(0)
+            for u in self.__graph_seq.get(v, []):
+                q.append(u)
+            # if v has many in-edges:
+            #     x = x + seq(x) + seq2(x) + ...
+
+            Converter.__write_line(file, f'x = self.seq{v}(x)', self.tabulation * 2)
+        Converter.__write_line(file, f'return x', self.tabulation * 2)
 
     def __write_model_init(self, file, model_name):
         Converter.__write_line(file, 'from torch import nn\n\n')
@@ -131,14 +153,12 @@ class Converter:
 
 
 if __name__ == '__main__':
-    model = alexnet()
+    model = AlexNet()
     xs = torch.zeros([1, 3, 224, 224])
     g1 = NeuralNetworkGraph(model=model, test_batch=xs)
+    network = Converter(g1, filepath='models/converted_alexnet.py', model_name='ConvertedAlexNet')
 
-    graph = NeuralNetworkGraph.get_graph(g1.embedding)
-    network = Converter(graph)
-
-    # g2 = NeuralNetworkGraph(model=network, test_batch=xs)
+    # g2 = NeuralNetworkGraph(model=Model(), test_batch=xs)
     # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
     # if not is_equal:
     #     print(message)

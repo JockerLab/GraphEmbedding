@@ -94,7 +94,7 @@ class NeuralNetworkGraph(nx.DiGraph):
     """Parse graph from network"""
 
     def __init__(self, model, test_batch):
-        """Initialize structure with embedding for each node from `model` graph using `HiddenLayer`"""
+        """Initialize structure with embedding for each node from `model` and graph from `HiddenLayer`"""
         super().__init__()
         hl_graph = hl.build_graph(model, test_batch, transforms=None)
         self.__colors = {}
