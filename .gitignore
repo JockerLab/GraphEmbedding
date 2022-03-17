@@ -2,4 +2,4 @@ Experiments/
 .idea/
 __pycache__/
 data/
-layers
+layers.txt

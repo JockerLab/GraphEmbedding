@@ -17,7 +17,7 @@ import hiddenlayer as hl
 # model = squeezenet1_1()
 # model = vgg19_bn()
 # model = LeNet(in_channels=1, img_size=28)
-# model = resnet101()
+model = resnet101()
 # xs = torch.zeros([1, 1, 28, 28])
 xs = torch.zeros([1, 3, 224, 224])
 

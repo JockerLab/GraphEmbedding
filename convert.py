@@ -47,7 +47,7 @@ class Converter:
         self.__create_layers(0)
 
         with open(filepath, 'w') as file:
-            self.__write_model(file, model_name)
+            self.__write_model_init(file, model_name)
             self.__write_layers(file)
             #self.__create_forward(file)
 
@@ -94,7 +94,6 @@ class Converter:
         ]:
             return self.__select_operation(node)
 
-        #print(f"Unsupportable layer type: {node['op']}.")
         return "#  Unsupportable layer type: {node['op']}"
 
     def __create_layers(self, cur_node):
@@ -113,35 +112,26 @@ class Converter:
             self.node_to_sequence[v] = current_sequence
             self.__create_layers(v)
 
+    @staticmethod
+    def __write_line(file, line, tab=''):
+        file.write(tab + line + '\n')
+
     def __write_layers(self, file):
         for key, value in self.sequences.items():
-            file.write(self.tabulation * 2 + f'self.seq{key} = nn.Sequential(\n')
+            Converter.__write_line(file, f'self.seq{key} = nn.Sequential(', self.tabulation * 2)
             for elem in value:
-                file.write(self.tabulation * 3 + elem + ',\n')
-            file.write(self.tabulation * 2 + ')\n')
+                Converter.__write_line(file, elem + ',', self.tabulation * 3)
+            Converter.__write_line(file, ')', self.tabulation * 2)
 
-    def __write_model(self, file, model_name):
-        # Write imports
-        file.write('from torch import nn\n\n\n')
-        # Write model initialization
-        file.write(f'class {model_name}(nn.Module):\n\n')
-        file.write(self.tabulation + 'def __init__(self):\n')
-        file.write(self.tabulation * 2 + f'super({model_name}, self).__init__()\n')
-
-
-def check_graphs(g1, g2):
-    if g1.edges != g2.edges:
-        print('Edges are not equal')
-    if sorted(list(g1.nodes)) != sorted(list(g2.nodes)):
-        print('Nodes are not equal')
-    for node in g1.nodes:
-        if g1.nodes[node] != g2.nodes[node]:
-            print('Node params are not equal')
+    def __write_model_init(self, file, model_name):
+        Converter.__write_line(file, 'from torch import nn\n\n')
+        Converter.__write_line(file, f'class {model_name}(nn.Module):\n')
+        Converter.__write_line(file, 'def __init__(self):', self.tabulation)
+        Converter.__write_line(file, f'super({model_name}, self).__init__()', self.tabulation * 2)
 
 
 if __name__ == '__main__':
-    # TODO: supress messages
-    model = resnet101()
+    model = alexnet()
     xs = torch.zeros([1, 3, 224, 224])
     g1 = NeuralNetworkGraph(model=model, test_batch=xs)
 
@@ -149,6 +139,6 @@ if __name__ == '__main__':
     network = Converter(graph)
 
     # g2 = NeuralNetworkGraph(model=network, test_batch=xs)
-
-    # if check_graphs(g1, g2):
-    #     print("Graphs are equal!")
+    # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
+    # if not is_equal:
+    #     print(message)
