@@ -3,3 +3,4 @@ Experiments/
 __pycache__/
 data/
 layers.txt
+models/teacher.pt

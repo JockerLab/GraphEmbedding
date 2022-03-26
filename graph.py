@@ -244,7 +244,7 @@ class NeuralNetworkGraph(nx.DiGraph):
 if __name__ == '__main__':
     # model = NeuralNetwork()
     # model = alexnet()
-    model = densenet201()
+    # model = densenet201()
     # model = mnasnet1_3()
     # model = squeezenet1_1()
     # model = vgg19_bn()
@@ -255,7 +255,7 @@ if __name__ == '__main__':
     xs = torch.zeros([1, 3, 224, 224])  # for other models from torchvision.models
 
     g1 = NeuralNetworkGraph(model=model, test_batch=xs)
-    g2 = NeuralNetworkGraph.get_graph(g1.embedding)
-    is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
-    if not is_equal:
-        print(message)
+    # g2 = NeuralNetworkGraph.get_graph(g1.embedding)
+    # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
+    # if not is_equal:
+    #     print(message)
