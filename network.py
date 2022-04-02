@@ -10,7 +10,8 @@ from torchvision.models import resnet101, densenet201, alexnet
 
 from models.converted_alexnet import ConvertedAlexNet
 from models.converted_densenet import ConvertedDenseNet
-# from models.converted_resnet import ConvertedResNet
+from models.converted_resnet import ConvertedResNet
+from models.converted_mnasnet import ConvertedMnasNet
 from models.original_alexnet import AlexNet
 
 

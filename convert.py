@@ -4,7 +4,11 @@ from torch import nn
 import networkx as nx
 from mapping import NetworkMapping
 from models.converted_alexnet import ConvertedAlexNet
+from models.converted_mnasnet import ConvertedMnasNet
+from models.converted_resnet import ConvertedResNet
 from models.converted_densenet import ConvertedDenseNet
+from models.converted_squeezenet import ConvertedSqueezeNet
+from models.converted_vgg import ConvertedVGG
 from network import NeuralNetwork
 from models.original_alexnet import AlexNet
 import torch
@@ -20,8 +24,8 @@ class Converter:
         self.node_to_layer = {}
         self.node_to_operation = {}
         self.tabulation = '    '
-        self.current_dim = self.graph.nodes[0]['output_shape'][1]
-        self.sequences = {1: [NetworkMapping.map_node(self.graph.nodes[0], 3, self.current_dim)]}
+        self.out_dim = {0: self.graph.nodes[0]['output_shape'][1]}
+        self.sequences = {1: [NetworkMapping.map_node(self.graph.nodes[0], 3, self.out_dim[0])]}
         self._graph_seq = nx.DiGraph()
         self._graph_seq.add_node(1, **{'op': self.graph.nodes[0]['op']})
         self.node_to_sequence = {0: 1}
@@ -36,26 +40,33 @@ class Converter:
         edges = self.graph.adj.get(cur_node)
         current_sequence = len(self.sequences)
 
+        if cur_node == 23:
+            kek = 0
+
         for v in edges:
-            if v == 12 and cur_node == 3:
-                kek = 0
             if v in self.node_to_sequence:
                 continue
             node = self.graph.nodes[v]
             # Skip concat and add
             layer = None
-            old_dim = self.current_dim
-            self.current_dim = node['output_shape'][1] if node['output_shape'] else self.current_dim
+            old_dim = self.out_dim[cur_node]
+            self.out_dim[v] = node['output_shape'][1] if node['output_shape'] else old_dim
             if node['op'] not in ['Concat', 'Add']:
-                layer = NetworkMapping.map_node(node, old_dim, self.current_dim)
-            if len(edges) > 1 or len(self.graph.pred[v]) > 1 or (node['op'] in ['Concat', 'Pad'] and len(self.graph.pred[v]) <= 1):
+                layer = NetworkMapping.map_node(node, old_dim, self.out_dim[v])
+            if len(edges) > 1 \
+                    or len(self.graph.pred[v]) > 1 \
+                    or (node['op'] in ['Concat', 'Pad'] and len(self.graph.pred[v]) <= 1):
                 current_sequence = len(self.sequences) + 1
                 if node['op'] == 'Pad':
-                    self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'pads': node['pads']})
+                    if current_sequence not in self._graph_seq.nodes:
+                        self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'pads': node['pads']})
                 else:
-                    self._graph_seq.add_node(current_sequence, **{'op': node['op']})
+                    if current_sequence not in self._graph_seq.nodes:
+                        self._graph_seq.add_node(current_sequence, **{'op': node['op']})
             array = self.sequences.get(current_sequence, [])
             if layer:
+                if node['op'] == 'Linear' and 'nn.Flatten()' not in array:
+                    array.append(NetworkMapping.map_node({'op': 'Flatten'}))
                 array.append(layer)
             self.sequences[current_sequence] = array
             self.node_to_sequence[v] = current_sequence
@@ -74,6 +85,8 @@ class Converter:
 
     def __write_layers(self, file):
         for key, value in self.sequences.items():
+            if len(value) == 0:
+                continue
             Converter.__write_line(file, f'self.seq{key} = nn.Sequential(', self.tabulation * 2)
             for elem in value:
                 Converter.__write_line(file, elem + ',', self.tabulation * 3)
@@ -110,9 +123,10 @@ class Converter:
                         inputs.append(f'x_{u}')
                     Converter.__write_line(file, f'x_{v} = {" + ".join(map(str, inputs))}',
                                            self.tabulation * 2)
-                    Converter.__write_line(file,
-                                           f'x_{v} = self.seq{v}(x_{v})',
-                                           self.tabulation * 2)
+                    if len(self.sequences[v]) > 0:
+                        Converter.__write_line(file,
+                                               f'x_{v} = self.seq{v}(x_{v})',
+                                               self.tabulation * 2)
             else:
                 if self._graph_seq.nodes[v]['op'] == 'Concat':
                     Converter.__write_line(file,
@@ -144,11 +158,18 @@ class Converter:
 
 
 if __name__ == '__main__':
-    model = resnet101()
+    # model = resnet101()
+    # model = NeuralNetwork()
+    # model = alexnet()
+    # model = densenet201()
+    # model = mnasnet1_3()
+    model = squeezenet1_1()
+    # model = vgg19_bn()
+    # model = resnet101()
     xs = torch.zeros([1, 3, 224, 224])
+    # xs = torch.zeros([64, 3, 28, 28])
     g1 = NeuralNetworkGraph(model=model, test_batch=xs)
-    network = Converter(g1, filepath='models/converted_resnet.py', model_name='ConvertedResNet')
-
-    # g2 = NeuralNetworkGraph(model=ConvertedDenseNet(), test_batch=xs)
-    # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
-    # print(message)
+    # network = Converter(g1, filepath='models/converted_squeezenet.py', model_name='ConvertedSqueezeNet')
+    g2 = NeuralNetworkGraph(model=ConvertedSqueezeNet(), test_batch=xs)
+    is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
+    print(message)

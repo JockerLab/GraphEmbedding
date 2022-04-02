@@ -248,8 +248,8 @@ if __name__ == '__main__':
     # model = mnasnet1_3()
     # model = squeezenet1_1()
     # model = vgg19_bn()
-    # model = LeNet(in_channels=1, img_size=28)
     # model = resnet101()
+    # model = LeNet(in_channels=1, img_size=28)
 
     # xs = torch.zeros([1, 1, 28, 28])  # for NeuralNetwork()
     xs = torch.zeros([1, 3, 224, 224])  # for other models from torchvision.models
