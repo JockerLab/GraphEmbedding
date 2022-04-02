@@ -445,19 +445,19 @@ class ConvertedResNet(nn.Module):
             nn.Linear(in_features=2048, out_features=1000),
         )
         self.seq68 = nn.Sequential(
-            nn.Conv2d(in_channels=1000, out_channels=2048, kernel_size=(1, 1), stride=(2, 2), padding=(0, 0), dilation=(1, 1), groups=1),
+            nn.Conv2d(in_channels=1024, out_channels=2048, kernel_size=(1, 1), stride=(2, 2), padding=(0, 0), dilation=(1, 1), groups=1),
             nn.BatchNorm2d(num_features=2048, eps=1e-05),
         )
         self.seq69 = nn.Sequential(
-            nn.Conv2d(in_channels=2048, out_channels=1024, kernel_size=(1, 1), stride=(2, 2), padding=(0, 0), dilation=(1, 1), groups=1),
+            nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=(1, 1), stride=(2, 2), padding=(0, 0), dilation=(1, 1), groups=1),
             nn.BatchNorm2d(num_features=1024, eps=1e-05),
         )
         self.seq70 = nn.Sequential(
-            nn.Conv2d(in_channels=1024, out_channels=512, kernel_size=(1, 1), stride=(2, 2), padding=(0, 0), dilation=(1, 1), groups=1),
+            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(1, 1), stride=(2, 2), padding=(0, 0), dilation=(1, 1), groups=1),
             nn.BatchNorm2d(num_features=512, eps=1e-05),
         )
         self.seq71 = nn.Sequential(
-            nn.Conv2d(in_channels=512, out_channels=256, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0), dilation=(1, 1), groups=1),
+            nn.Conv2d(in_channels=64, out_channels=256, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0), dilation=(1, 1), groups=1),
             nn.BatchNorm2d(num_features=256, eps=1e-05),
         )
 
