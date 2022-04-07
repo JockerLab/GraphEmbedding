@@ -94,6 +94,7 @@ reversed_attribute_to_pos = {
 ATTRIBUTES_POS_COUNT = 37
 NODE_EMBEDDING_DIMENSION = 100
 
+
 class NeuralNetworkGraph(nx.DiGraph):
     """Parse graph from network"""
 
