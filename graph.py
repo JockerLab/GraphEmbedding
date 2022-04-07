@@ -46,7 +46,6 @@ pads_to_mods = {
 
 ops_with_different_dims = ["output_shape", "pads"]
 
-ATTRIBUTES_POS_COUNT = 37
 attribute_to_pos = {
     "dilations": [0, 1],
     "group": 2,
@@ -92,6 +91,8 @@ reversed_attribute_to_pos = {
     36: ['op', 1]
 }
 
+ATTRIBUTES_POS_COUNT = 37
+NODE_EMBEDDING_DIMENSION = 1000
 
 class NeuralNetworkGraph(nx.DiGraph):
     """Parse graph from network"""
@@ -174,7 +175,7 @@ class NeuralNetworkGraph(nx.DiGraph):
         """Calculate embedding for each node"""
         for id in self.nodes:
             node = self.nodes[id]
-            embedding = [None] * ATTRIBUTES_POS_COUNT
+            embedding = [None] * NODE_EMBEDDING_DIMENSION
 
             """
             Take output_shape and check it. output_shape might be None or
@@ -204,8 +205,13 @@ class NeuralNetworkGraph(nx.DiGraph):
                         value = pads_to_mods[value]
                     embedding[attribute_to_pos[op_name]] = value
 
-            edge_list = self.adj[id]
-            embedding.extend([len(edge_list), *edge_list])
+            edge_list = list(self.adj[id])
+            if len(edge_list) + ATTRIBUTES_POS_COUNT + 1 <= 1000:
+                embedding[ATTRIBUTES_POS_COUNT] = len(edge_list)
+                for i in range(0, len(edge_list)):
+                    embedding[ATTRIBUTES_POS_COUNT + i + 1] = edge_list[i]
+            else:
+                print('This graph is not supported!')
             self.embedding.append(embedding)
 
     def __parse_graph(self, graph):
@@ -263,8 +269,7 @@ if __name__ == '__main__':
     # g1 = NeuralNetworkGraph(model=model, test_batch=xs)
     # g2 = NeuralNetworkGraph.get_graph(g1.embedding)
     # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
-    # if not is_equal:
-    #     print(message)
+    # print(message)
 
     models = {
         "alexnet": AlexNet(),
@@ -285,12 +290,8 @@ if __name__ == '__main__':
             if name == 'inception':
                 xs = torch.zeros([64, 3, 299, 299])
             g = NeuralNetworkGraph(model=model, test_batch=xs)
-            min_dim = 100000
-            max_dim = -1
-            for embedding in g.embedding:
-                min_dim = min(min_dim, len(embedding))
-                max_dim = max(max_dim, len(embedding))
-            f.write(f'{name}:\nlen = {len(g.embedding)}\nmin_dim = {min_dim}\nmax_dim = {max_dim}\n\n')
+            dim = NODE_EMBEDDING_DIMENSION
+            f.write(f'{name}:\nlen = {len(g.embedding)}\nnode_dim = {dim}\n\n')
 
             with open(f'embeddings/naive_{name}.txt', 'w') as f1:
                 f1.write(json.dumps(g.embedding))

@@ -7,6 +7,7 @@ import scipy
 from mapping import NetworkMapping
 from models.converted_alexnet import ConvertedAlexNet
 from models.converted_mnasnet import ConvertedMnasNet
+from models.converted_nasnet import ConvertedNasNet
 from models.converted_resnet import ConvertedResNet
 from models.converted_resnet50 import ConvertedResNet50
 from models.converted_densenet import ConvertedDenseNet

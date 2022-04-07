@@ -1,45 +1,36 @@
 alexnet:
 len = 20
-min_dim = 38
-max_dim = 39
+node_dim = 1000
 
 resnet50:
 len = 175
-min_dim = 38
-max_dim = 40
+node_dim = 1000
 
 resnet101:
 len = 345
-min_dim = 38
-max_dim = 40
+node_dim = 1000
 
 unet:
 len = 68
-min_dim = 38
-max_dim = 40
+node_dim = 1000
 
 vgg:
 len = 60
-min_dim = 38
-max_dim = 39
+node_dim = 1000
 
 densenet:
 len = 714
-min_dim = 38
-max_dim = 87
+node_dim = 1000
 
 inception:
 len = 322
-min_dim = 38
-max_dim = 42
+node_dim = 1000
 
 mnasnet:
 len = 151
-min_dim = 38
-max_dim = 40
+node_dim = 1000
 
 squeezenet:
 len = 65
-min_dim = 38
-max_dim = 40
+node_dim = 1000
 
