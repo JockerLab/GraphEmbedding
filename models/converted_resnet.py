@@ -463,8 +463,8 @@ class ConvertedResNet(nn.Module):
 
     def forward(self, x_0):
         x_1 = self.seq1(x_0)
-        x_2 = self.seq2(x_1)
         x_71 = self.seq71(x_1)
+        x_2 = self.seq2(x_1)
         x_3 = x_2 + x_71
         x_3 = self.seq3(x_3)
         x_4 = self.seq4(x_3)
@@ -473,8 +473,8 @@ class ConvertedResNet(nn.Module):
         x_6 = self.seq6(x_5)
         x_7 = x_6 + x_5
         x_7 = self.seq7(x_7)
-        x_8 = self.seq8(x_7)
         x_70 = self.seq70(x_7)
+        x_8 = self.seq8(x_7)
         x_9 = x_8 + x_70
         x_9 = self.seq9(x_9)
         x_10 = self.seq10(x_9)
@@ -486,8 +486,8 @@ class ConvertedResNet(nn.Module):
         x_14 = self.seq14(x_13)
         x_15 = x_14 + x_13
         x_15 = self.seq15(x_15)
-        x_16 = self.seq16(x_15)
         x_69 = self.seq69(x_15)
+        x_16 = self.seq16(x_15)
         x_17 = x_16 + x_69
         x_17 = self.seq17(x_17)
         x_18 = self.seq18(x_17)
@@ -556,8 +556,8 @@ class ConvertedResNet(nn.Module):
         x_60 = self.seq60(x_59)
         x_61 = x_60 + x_59
         x_61 = self.seq61(x_61)
-        x_62 = self.seq62(x_61)
         x_68 = self.seq68(x_61)
+        x_62 = self.seq62(x_61)
         x_63 = x_62 + x_68
         x_63 = self.seq63(x_63)
         x_64 = self.seq64(x_63)

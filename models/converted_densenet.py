@@ -66,8 +66,7 @@ class ConvertedDenseNet(nn.Module):
             nn.Conv2d(in_channels=256, out_channels=128, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0), dilation=(1, 1), groups=1),
         )
         self.seq9 = nn.Sequential(
-            #  Unsupportable layer type: Pad,
-            nn.AdaptiveAvgPool2d((28, 28)),
+            nn.AvgPool2d(kernel_size=[2, 2], stride=[2, 2], padding=[0, 0]),
         )
         self.seq10 = nn.Sequential(
             nn.BatchNorm2d(num_features=128, eps=1e-05),
@@ -171,8 +170,7 @@ class ConvertedDenseNet(nn.Module):
             nn.Conv2d(in_channels=512, out_channels=256, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0), dilation=(1, 1), groups=1),
         )
         self.seq23 = nn.Sequential(
-            #  Unsupportable layer type: Pad,
-            nn.AdaptiveAvgPool2d((14, 14)),
+            nn.AvgPool2d(kernel_size=[2, 2], stride=[2, 2], padding=[0, 0]),
         )
         self.seq24 = nn.Sequential(
             nn.BatchNorm2d(num_features=256, eps=1e-05),
@@ -564,8 +562,7 @@ class ConvertedDenseNet(nn.Module):
             nn.Conv2d(in_channels=1792, out_channels=896, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0), dilation=(1, 1), groups=1),
         )
         self.seq73 = nn.Sequential(
-            #  Unsupportable layer type: Pad,
-            nn.AdaptiveAvgPool2d((7, 7)),
+            nn.AvgPool2d(kernel_size=[2, 2], stride=[2, 2], padding=[0, 0]),
         )
         self.seq74 = nn.Sequential(
             nn.BatchNorm2d(num_features=896, eps=1e-05),
@@ -847,8 +844,7 @@ class ConvertedDenseNet(nn.Module):
         x_7 = self.seq7(x_7)
         x_8 = torch.cat([x_7, x_6, x_5, x_4, x_3, x_2, x_1], 1)
         x_8 = self.seq8(x_8)
-        x_9 = torch.nn.functional.pad(x_8, [0, 0, 0, 0, 0, 0, 0, 0])
-        x_9 = self.seq9(x_9)
+        x_9 = self.seq9(x_8)
         x_10 = torch.cat([x_9], 1)
         x_10 = self.seq10(x_10)
         x_11 = torch.cat([x_10, x_9], 1)
@@ -875,8 +871,7 @@ class ConvertedDenseNet(nn.Module):
         x_21 = self.seq21(x_21)
         x_22 = torch.cat([x_21, x_20, x_19, x_18, x_17, x_16, x_15, x_14, x_13, x_12, x_11, x_10, x_9], 1)
         x_22 = self.seq22(x_22)
-        x_23 = torch.nn.functional.pad(x_22, [0, 0, 0, 0, 0, 0, 0, 0])
-        x_23 = self.seq23(x_23)
+        x_23 = self.seq23(x_22)
         x_24 = torch.cat([x_23], 1)
         x_24 = self.seq24(x_24)
         x_25 = torch.cat([x_24, x_23], 1)
@@ -975,8 +970,7 @@ class ConvertedDenseNet(nn.Module):
         x_71 = self.seq71(x_71)
         x_72 = torch.cat([x_71, x_70, x_69, x_68, x_67, x_66, x_65, x_64, x_63, x_62, x_61, x_60, x_59, x_58, x_57, x_56, x_55, x_54, x_53, x_52, x_51, x_50, x_49, x_48, x_47, x_46, x_45, x_44, x_43, x_42, x_41, x_40, x_39, x_38, x_37, x_36, x_35, x_34, x_33, x_32, x_31, x_30, x_29, x_28, x_27, x_26, x_25, x_24, x_23], 1)
         x_72 = self.seq72(x_72)
-        x_73 = torch.nn.functional.pad(x_72, [0, 0, 0, 0, 0, 0, 0, 0])
-        x_73 = self.seq73(x_73)
+        x_73 = self.seq73(x_72)
         x_74 = torch.cat([x_73], 1)
         x_74 = self.seq74(x_74)
         x_75 = torch.cat([x_74, x_73], 1)

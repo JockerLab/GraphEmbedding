@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 
 
@@ -28,6 +29,6 @@ class ConvertedAlexNet(nn.Module):
             nn.Linear(in_features=4096, out_features=1000),
         )
 
-    def forward(self, x):
-        x = self.seq1(x)
-        return x
+    def forward(self, x_0):
+        x_1 = self.seq1(x_0)
+        return x_1

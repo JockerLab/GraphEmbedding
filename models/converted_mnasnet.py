@@ -176,7 +176,6 @@ class ConvertedMnasNet(nn.Module):
             nn.Conv2d(in_channels=416, out_channels=1280, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0), dilation=(1, 1), groups=1),
             nn.BatchNorm2d(num_features=1280, eps=1e-05),
             nn.ReLU(),
-            #  Unsupportable layer type: ReduceMean,
             nn.Flatten(),
             nn.Linear(in_features=1280, out_features=1000),
         )

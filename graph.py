@@ -4,7 +4,6 @@ import networkx as nx
 from KD_Lib.models import ResNet18, LeNet
 from torch import nn
 from copy import deepcopy
-# from karateclub import DeepWalk, Diff2Vec
 from torchvision.models import resnet101, densenet201, alexnet, vgg19_bn, mnasnet1_3, squeezenet1_1
 from network import NeuralNetwork
 from torch.utils.data import DataLoader
@@ -32,6 +31,7 @@ node_to_ops = {
     "Pad": 12,
     "ReduceMean": 13,
     "Tanh": 14,
+    "ConvTranspose": 15,
 }
 
 pads_to_mods = {
