@@ -1,0 +1,45 @@
+alexnet:
+len = 20
+min_dim = 38
+max_dim = 39
+
+resnet50:
+len = 175
+min_dim = 38
+max_dim = 40
+
+resnet101:
+len = 345
+min_dim = 38
+max_dim = 40
+
+unet:
+len = 68
+min_dim = 38
+max_dim = 40
+
+vgg:
+len = 60
+min_dim = 38
+max_dim = 39
+
+densenet:
+len = 714
+min_dim = 38
+max_dim = 87
+
+inception:
+len = 322
+min_dim = 38
+max_dim = 42
+
+mnasnet:
+len = 151
+min_dim = 38
+max_dim = 40
+
+squeezenet:
+len = 65
+min_dim = 38
+max_dim = 40
+

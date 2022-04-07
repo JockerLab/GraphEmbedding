@@ -4,7 +4,10 @@ import networkx as nx
 from KD_Lib.models import ResNet18, LeNet
 from torch import nn
 from copy import deepcopy
-from torchvision.models import resnet101, densenet201, alexnet, vgg19_bn, mnasnet1_3, squeezenet1_1
+from torchvision.models import resnet101, densenet201, alexnet, vgg19_bn, mnasnet1_3, squeezenet1_1, resnet50, \
+    inception_v3
+from models.original_alexnet import AlexNet
+from models.original_unet import UNet
 from network import NeuralNetwork
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor, Lambda, Compose
@@ -243,19 +246,51 @@ class NeuralNetworkGraph(nx.DiGraph):
 
 if __name__ == '__main__':
     # model = NeuralNetwork()
-    # model = alexnet()
+    # model = resnet101()
+    # model = AlexNet()
     # model = densenet201()
     # model = mnasnet1_3()
     # model = squeezenet1_1()
+    # model = resnet50()
     # model = vgg19_bn()
-    # model = resnet101()
-    # model = LeNet(in_channels=1, img_size=28)
+    # model = inception_v3(aux_logits=False)
+    # model = UNet(3, 10)
 
-    # xs = torch.zeros([1, 1, 28, 28])  # for NeuralNetwork()
-    xs = torch.zeros([1, 3, 224, 224])  # for other models from torchvision.models
+    # xs = torch.zeros([1, 3, 224, 224])  # for other models from torchvision.models
+    # xs = torch.zeros([64, 3, 28, 28])  # for MnasNet and NeuralNetwork
+    # xs = torch.zeros([64, 3, 299, 299])  # for inception
 
-    g1 = NeuralNetworkGraph(model=model, test_batch=xs)
+    # g1 = NeuralNetworkGraph(model=model, test_batch=xs)
     # g2 = NeuralNetworkGraph.get_graph(g1.embedding)
     # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
     # if not is_equal:
     #     print(message)
+
+    models = {
+        "alexnet": AlexNet(),
+        "resnet50": resnet50(),
+        "resnet101": resnet101(),
+        "unet": UNet(3, 10),
+        "vgg": vgg19_bn(),
+        "densenet": densenet201(),
+        "inception": inception_v3(aux_logits=False),
+        "mnasnet": mnasnet1_3(),
+        "squeezenet": squeezenet1_1(),
+    }
+    with open('embeddings/embeddings_dims.txt', 'w') as f:
+        for name, model in models.items():
+            xs = torch.zeros([1, 3, 224, 224])
+            if name == 'mnasnet':
+                xs = torch.zeros([64, 3, 28, 28])
+            if name == 'inception':
+                xs = torch.zeros([64, 3, 299, 299])
+            g = NeuralNetworkGraph(model=model, test_batch=xs)
+            min_dim = 100000
+            max_dim = -1
+            for embedding in g.embedding:
+                min_dim = min(min_dim, len(embedding))
+                max_dim = max(max_dim, len(embedding))
+            f.write(f'{name}:\nlen = {len(g.embedding)}\nmin_dim = {min_dim}\nmax_dim = {max_dim}\n\n')
+
+            with open(f'embeddings/naive_{name}.txt', 'w') as f1:
+                f1.write(json.dumps(g.embedding))

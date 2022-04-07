@@ -186,9 +186,11 @@ if __name__ == '__main__':
     # model = inception_v3(aux_logits=False)
     # model = UNet(3, 10)
     # model = ConvertedInception()
+
     xs = torch.zeros([1, 3, 224, 224])
     # xs = torch.zeros([64, 3, 28, 28])  # for MnasNet
     # xs = torch.zeros([64, 3, 299, 299])  # for inception
+
     g1 = NeuralNetworkGraph(model=model, test_batch=xs)
     # network = Converter(g1, filepath='models/converted_squeezenet.py', model_name='ConvertedSqueezeNet')
     g2 = NeuralNetworkGraph(model=ConvertedSqueezeNet(), test_batch=xs)
