@@ -3,17 +3,8 @@ import sys
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets
-from torchvision.transforms import ToTensor, Lambda, Compose
-import matplotlib.pyplot as plt
+from torchvision.transforms import ToTensor
 import torch.nn.functional as F
-from torchvision.models import resnet101, densenet201, alexnet
-
-from models.converted_alexnet import ConvertedAlexNet
-from models.converted_densenet import ConvertedDenseNet
-from models.converted_resnet import ConvertedResNet
-from models.converted_mnasnet import ConvertedMnasNet
-from models.converted_inception import ConvertedInception
-from models.original_alexnet import AlexNet
 
 
 class NeuralNetwork(nn.Module):
@@ -94,7 +85,7 @@ if __name__ == '__main__':
 
     # train_dataloader, test_dataloader = load_data(datasets.MNIST)
     train_dataloader, test_dataloader = load_data(datasets.CIFAR10)
-    # model = NeuralNetwork()
+    model = NeuralNetwork()
     # model = ConvertedAlexNet()
 
     # model.load_state_dict(torch.load("models/model.pth"))

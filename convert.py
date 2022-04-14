@@ -1,30 +1,15 @@
-from torchvision.models import resnet101, densenet201, alexnet, vgg19_bn, mnasnet1_3, squeezenet1_1, resnet50, \
-    inception_v3
+from torchvision.models import squeezenet1_1, mnasnet1_3, densenet201
 from graph import NeuralNetworkGraph
 from torch import nn
 import networkx as nx
-import scipy
 from mapping import NetworkMapping
-from models.converted_alexnet import ConvertedAlexNet
-from models.converted_mnasnet import ConvertedMnasNet
-from models.converted_nasnet import ConvertedNasNet
-from models.converted_resnet import ConvertedResNet
-from models.converted_resnet50 import ConvertedResNet50
-from models.converted_densenet import ConvertedDenseNet
-from models.converted_squeezenet import ConvertedSqueezeNet
-from models.converted_inception import ConvertedInception
-from models.converted_vgg import ConvertedVGG
-from models.converted_unet import ConvertedUnet
-from models.original_alexnet import AlexNet
-from models.original_unet import UNet
-from network import NeuralNetwork
+from models.converted.converted_squeezenet import ConvertedSqueezeNet
 import torch
-import os
-import matplotlib.pyplot as plt
-import types
+from models.original.original_alexnet import AlexNet
 
 
 class Converter:
+    """Convert input graph to neural network."""
     def __init__(self, graph, filepath='models/my_model.py', model_name="Model"):
         self.graph = graph
         self.operations = nn.ModuleList()
@@ -177,10 +162,10 @@ class Converter:
 if __name__ == '__main__':
     # model = resnet101()
     # model = NeuralNetwork()
-    # model = AlexNet()
+    model = AlexNet()
     # model = densenet201()
     # model = mnasnet1_3()
-    model = squeezenet1_1()
+    # model = squeezenet1_1()
     # model = resnet50()
     # model = vgg19_bn()
     # model = resnet101()
@@ -188,12 +173,14 @@ if __name__ == '__main__':
     # model = UNet(3, 10)
     # model = ConvertedInception()
 
+    # model.train()
+
     xs = torch.zeros([1, 3, 224, 224])
     # xs = torch.zeros([64, 3, 28, 28])  # for MnasNet
     # xs = torch.zeros([64, 3, 299, 299])  # for inception
 
     g1 = NeuralNetworkGraph(model=model, test_batch=xs)
-    # network = Converter(g1, filepath='models/converted_squeezenet.py', model_name='ConvertedSqueezeNet')
-    g2 = NeuralNetworkGraph(model=ConvertedSqueezeNet(), test_batch=xs)
-    is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
-    print(message)
+    network = Converter(g1, filepath='models/converted/converted_alexnet.py', model_name='ConvertedAlexNet')
+    # g2 = NeuralNetworkGraph(model=ConvertedAlexNet1(), test_batch=xs)
+    # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
+    # print(message)

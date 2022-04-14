@@ -1,21 +1,12 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import networkx as nx
-from KD_Lib.models import ResNet18, LeNet
-from torch import nn
-from copy import deepcopy
-from torchvision.models import resnet101, densenet201, alexnet, vgg19_bn, mnasnet1_3, squeezenet1_1, resnet50, \
+from torchvision.models import resnet101, densenet201, vgg19_bn, mnasnet1_3, squeezenet1_1, resnet50, \
     inception_v3
-from models.original_alexnet import AlexNet
-from models.original_unet import UNet
-from network import NeuralNetwork
-from torch.utils.data import DataLoader
-from torchvision.transforms import ToTensor, Lambda, Compose
-from torchvision import datasets, models
-from ast import literal_eval
+
+from models.original.original_alexnet import AlexNet
+from models.original.original_unet import UNet
 import hiddenlayer as hl
-from functools import reduce
 import torch
+import pandas
 import json
 
 node_to_ops = {
@@ -93,6 +84,9 @@ reversed_attribute_to_pos = {
 
 ATTRIBUTES_POS_COUNT = 37
 NODE_EMBEDDING_DIMENSION = 100
+NONE_REPLACEMENT = -1  # TODO: -1? and ceil to (int) or leave float
+# autoencoder = Autoencoder()
+# autoencoder.load_state_dict(torch.load("models/autoencoder.pth"))
 
 
 class NeuralNetworkGraph(nx.DiGraph):
@@ -109,13 +103,35 @@ class NeuralNetworkGraph(nx.DiGraph):
         self.__parse_graph(hl_graph)
 
     @classmethod
-    def get_graph(cls, embedding):
-        """Create graph from embedding and return it"""
+    def get_graph(cls, embedding, is_naive=False):
+        """Create graph from embedding and return it. Get embedding type of list"""
         graph = cls.__new__(cls)
         super(NeuralNetworkGraph, graph).__init__()
-        graph.embedding = embedding
+        # TODO:
+        #  graph.embedding = embedding if is_naive else autoencoder.decode(
+        #     torch.tensor(NeuralNetworkGraph.replace_none_in_embedding(embedding, is_need_replace=False))).tolist()
         graph.__create_graph()
         return graph
+
+    def get_naive_embedding(self):
+        """Return naive embedding"""
+        return self.embedding
+
+    @staticmethod
+    def replace_none_in_embedding(embedding, is_need_replace=True):
+        for i in range(len(embedding)):
+            for j in range(len(embedding[i])):
+                if is_need_replace and not embedding[i][j]:
+                    embedding[i][j] = NONE_REPLACEMENT
+                if not is_need_replace and embedding[i][j] == NONE_REPLACEMENT:
+                    embedding[i][j] = None
+        return embedding
+
+    def get_embedding(self):
+        """Return embedding"""
+        # TODO:
+        #  return autoencoder.encode(
+        #     torch.tensor(NeuralNetworkGraph.replace_none_in_embedding(self.embedding.copy()))).tolist()
 
     def __create_graph(self):
         """Create `networkx.DiGraph` graph from embedding"""
@@ -172,7 +188,7 @@ class NeuralNetworkGraph(nx.DiGraph):
         self.__colors[v] = 2
         return result
 
-    def __get_embedding(self):
+    def __calculate_embedding(self):
         """Calculate embedding for each node"""
         for id in self.nodes:
             node = self.nodes[id]
@@ -232,7 +248,7 @@ class NeuralNetworkGraph(nx.DiGraph):
             is_supported = self.__is_supported(0)
 
             if is_supported:
-                self.__get_embedding()
+                self.__calculate_embedding()
             else:
                 print('Graph is not supported. This network is not supported.')
         except KeyError as e:
@@ -261,14 +277,14 @@ if __name__ == '__main__':
     # model = resnet50()
     # model = vgg19_bn()
     # model = inception_v3(aux_logits=False)
-    # model = UNet(3, 10)
+    model = UNet(3, 10)
 
-    # xs = torch.zeros([1, 3, 224, 224])  # for other models from torchvision.models
+    xs = torch.zeros([1, 3, 224, 224])  # for other models from torchvision.models
     # xs = torch.zeros([64, 3, 28, 28])  # for MnasNet and NeuralNetwork
     # xs = torch.zeros([64, 3, 299, 299])  # for inception
 
     # g1 = NeuralNetworkGraph(model=model, test_batch=xs)
-    # g2 = NeuralNetworkGraph.get_graph(g1.embedding)
+    # g2 = NeuralNetworkGraph.get_graph(g1.get_embedding())
     # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
     # print(message)
 
@@ -283,16 +299,34 @@ if __name__ == '__main__':
         "mnasnet": mnasnet1_3(),
         "squeezenet": squeezenet1_1(),
     }
-    with open('embeddings/embeddings_dims.txt', 'w') as f:
-        for name, model in models.items():
-            xs = torch.zeros([1, 3, 224, 224])
-            if name == 'mnasnet':
-                xs = torch.zeros([64, 3, 28, 28])
-            if name == 'inception':
-                xs = torch.zeros([64, 3, 299, 299])
-            g = NeuralNetworkGraph(model=model, test_batch=xs)
-            dim = NODE_EMBEDDING_DIMENSION
-            f.write(f'{name}:\nlen = {len(g.embedding)}\nnode_dim = {dim}\n\n')
 
-            with open(f'embeddings/naive_{name}.txt', 'w') as f1:
-                f1.write(json.dumps(g.embedding))
+    # cnt = 0
+    # for name, model in models.items():
+    #     cnt += 1
+    #     xs = torch.zeros([1, 3, 224, 224])
+    #     if name == 'mnasnet':
+    #         xs = torch.zeros([64, 3, 28, 28])
+    #     if name == 'inception':
+    #         xs = torch.zeros([64, 3, 299, 299])
+    #     g = NeuralNetworkGraph(model=model, test_batch=xs)
+    #     embedding = g.get_naive_embedding()
+    #     for e in embedding:
+    #         for i in range(len(e)):
+    #             if e[i] == None:
+    #                 e[i] = NONE_REPLACEMENT
+    #     with open(f'./data/embeddings/{cnt}.json', 'w') as f:
+    #         f.write(json.dumps(embedding))
+
+    # with open('embeddings/naive/embeddings_dims.txt', 'w') as f:
+    #     for name, model in models.items():
+    #         xs = torch.zeros([1, 3, 224, 224])
+    #         if name == 'mnasnet':
+    #             xs = torch.zeros([64, 3, 28, 28])
+    #         if name == 'inception':
+    #             xs = torch.zeros([64, 3, 299, 299])
+    #         g = NeuralNetworkGraph(model=model, test_batch=xs)
+    #         dim = NODE_EMBEDDING_DIMENSION
+    #         f.write(f'{name}:\nlen = {len(g.embedding)}\nnode_dim = {dim}\n\n')
+    #
+    #         with open(f'embeddings/naive/naive_{name}.txt', 'w') as f1:
+    #             f1.write(json.dumps(g.embedding))
