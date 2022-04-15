@@ -114,28 +114,30 @@ class NeuralNetworkGraph(nx.DiGraph):
         # TODO:
         #  graph.embedding = embedding if is_naive else autoencoder.decode(
         #     torch.tensor(NeuralNetworkGraph.replace_none_in_embedding(embedding, is_need_replace=False))).tolist()
+        graph.embedding = embedding
         graph.embedding = cls.__fix_attributes(graph.embedding)
         graph.__create_graph()
         return graph
 
     @staticmethod
     def __fix_attributes(embedding):
-        for pos, attr in reversed_attribute.items():
-            if 'len' not in attr:
-                n = NODE_EMBEDDING_DIMENSION
-            else:
-                n = attr['len']
-            for i in range(n):
-                if not embedding[pos + i]:
-                    continue
-                if attr['type'] == 'int':
-                    embedding[pos + i] = int(round(embedding[pos + i]))
-                if attr['type'] == 'float':
-                    embedding[pos + i] = float(embedding[pos + i])
-                if embedding[pos + i] < attr['range'][0]:
-                    embedding[pos + i] = attr['range'][0]
-                if attr['range'][1] <= embedding[pos + i]:
-                    embedding[pos + i] = attr['range'][1]
+        for e in range(len(embedding)):
+            for pos, attr in reversed_attribute.items():
+                if 'len' not in attr:
+                    n = NODE_EMBEDDING_DIMENSION - pos
+                else:
+                    n = attr['len']
+                for i in range(n):
+                    if not embedding[e][pos + i]:
+                        continue
+                    if attr['type'] == 'int':
+                        embedding[e][pos + i] = int(round(embedding[e][pos + i]))
+                    if attr['type'] == 'float':
+                        embedding[e][pos + i] = float(embedding[e][pos + i])
+                    if embedding[e][pos + i] < attr['range'][0]:
+                        embedding[e][pos + i] = attr['range'][0]
+                    if attr['range'][1] <= embedding[e][pos + i]:
+                        embedding[e][pos + i] = attr['range'][1]
         return embedding
 
     def get_naive_embedding(self):

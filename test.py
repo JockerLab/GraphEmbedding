@@ -21,61 +21,68 @@ from torchvision import datasets, transforms as T
 import torchvision.models as models
 
 
-models = {
-'resnet18': models.resnet18(),
-'resnet34': models.resnet34(),
-'resnet50': models.resnet50(),
-'resnet101': models.resnet101(),
-'resnet152': models.resnet152(),
-'resnext50_32x4d': models.resnext50_32x4d(),
-'resnext101_32x8d': models.resnext101_32x8d(),
-'wide_resnet50_2': models.wide_resnet50_2(),
-'wide_resnet101_2': models.wide_resnet101_2(),
-'unet': UNet(3, 10),
-'alexnet':models.alexnet(),
-'vgg16': models.vgg16(),
-'vgg11': models.vgg11(),
-'vgg11_bn': models.vgg11_bn(),
-'vgg13': models.vgg13(),
-'vgg13_bn': models.vgg13_bn(),
-'vgg16_bn': models.vgg16_bn(),
-'vgg19_bn': models.vgg19_bn(),
-'vgg19': models.vgg19(),
-'squeezenet1_0': models.squeezenet1_0(),
-'squeezenet1_1': models.squeezenet1_1(),
-'densenet161' : models.densenet161(),
-'densenet121': models.densenet121(),
-'densenet169': models.densenet169(),
-'densenet201': models.densenet201(),
-'inception': models.inception_v3(aux_logits=False),
-'googlenet': models.googlenet(aux_logits=False),
-'mnasnet1_0': models.mnasnet1_0(),
-'mnasnet0_5': models.mnasnet0_5(),
-'mnasnet0_75': models.mnasnet0_75(),
-'mnasnet1_3': models.mnasnet1_3(),
-'gen1':    GeneratedModel1(),
-'GeneratedDensenet': GeneratedDensenet(),
-'classification': NaturalSceneClassification(),
-}
+# models = {
+# 'resnet18': models.resnet18(),
+# 'resnet34': models.resnet34(),
+# 'resnet50': models.resnet50(),
+# 'resnet101': models.resnet101(),
+# 'resnet152': models.resnet152(),
+# 'resnext50_32x4d': models.resnext50_32x4d(),
+# 'resnext101_32x8d': models.resnext101_32x8d(),
+# 'wide_resnet50_2': models.wide_resnet50_2(),
+# 'wide_resnet101_2': models.wide_resnet101_2(),
+# 'unet': UNet(3, 10),
+# 'alexnet':models.alexnet(),
+# 'vgg16': models.vgg16(),
+# 'vgg11': models.vgg11(),
+# 'vgg11_bn': models.vgg11_bn(),
+# 'vgg13': models.vgg13(),
+# 'vgg13_bn': models.vgg13_bn(),
+# 'vgg16_bn': models.vgg16_bn(),
+# 'vgg19_bn': models.vgg19_bn(),
+# 'vgg19': models.vgg19(),
+# 'squeezenet1_0': models.squeezenet1_0(),
+# 'squeezenet1_1': models.squeezenet1_1(),
+# 'densenet161' : models.densenet161(),
+# 'densenet121': models.densenet121(),
+# 'densenet169': models.densenet169(),
+# 'densenet201': models.densenet201(),
+# 'inception': models.inception_v3(aux_logits=False),
+# 'googlenet': models.googlenet(aux_logits=False),
+# 'mnasnet1_0': models.mnasnet1_0(),
+# 'mnasnet0_5': models.mnasnet0_5(),
+# 'mnasnet0_75': models.mnasnet0_75(),
+# 'mnasnet1_3': models.mnasnet1_3(),
+# 'gen1':    GeneratedModel1(),
+# 'GeneratedDensenet': GeneratedDensenet(),
+# 'classification': NaturalSceneClassification(),
+# }
 
 
-# Test models convertation
-with open('./tmp_model.py', 'w') as f:
-    f.write('')
-import tmp_model
-for name, model in models.items():
-    print(f'{name} model is processing')
-    xs = torch.zeros([4, 3, 224, 224])
-    if name == 'inception':
-        xs = torch.zeros([4, 3, 299, 299])
-    if name == 'classification':
-        xs = torch.zeros([128, 3, 150, 150])
-    g = NeuralNetworkGraph(model=model, test_batch=xs)
-    Converter(g, filepath='./tmp_model.py', model_name='Tmp')
-    importlib.reload(tmp_model)
-    print('    ->' + str(len(list(tmp_model.Tmp().modules()))))
-    tmp_model.Tmp()(xs)
+embedding = [[None, None, None, None, None, None, None, 12, None, None, None, None, 49, None, None, None, 44, None, None, None, None, None, None, None, None, 19, None, 16, None, None, 29, None, None, 7, None, 2, None, 17, None, None, 49, 3, None, None, 48, 33, 9, None, None, None, None, None, None, None, 49, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, 41, None, 49, None, 21, None, 50, 18, None, None, None, None, None, None, None, None, None, 17, None, 50, None, None, 42, 21, None, 13, None], [None, 5, None, None, None, None, None, 1, None, None, None, None, None, 15, 50, None, None, 48, None, None, 0, None, 47, None, None, None, None, 1, None, None, None, 47, None, None, None, None, None, 43, 47, None, None, None, 46, 48, 29, None, 28, None, None, None, None, None, None, None, None, 16, None, None, 21, None, None, None, None, None, None, None, None, None, 17, None, None, None, 46, None, None, 13, 1, 9, None, None, None, None, 44, None, 20, None, None, None, 38, 27, 1, 33, None, None, None, None, 23, None, None, None]]
+graph = NeuralNetworkGraph.get_graph(embedding)
+print("Graph generated")
+Converter(graph, filepath='./tmp_model.py', model_name='Tmp')
+print("Model generated")
 os.remove('./tmp_model.py')
+
+# # Test models convertation
+# with open('./tmp_model.py', 'w') as f:
+#     f.write('')
+# import tmp_model
+# for name, model in models.items():
+#     print(f'{name} model is processing')
+#     xs = torch.zeros([4, 3, 224, 224])
+#     if name == 'inception':
+#         xs = torch.zeros([4, 3, 299, 299])
+#     if name == 'classification':
+#         xs = torch.zeros([128, 3, 150, 150])
+#     g = NeuralNetworkGraph(model=model, test_batch=xs)
+#     Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+#     importlib.reload(tmp_model)
+#     print('    ->' + str(len(list(tmp_model.Tmp().modules()))))
+#     tmp_model.Tmp()(xs)
+# os.remove('./tmp_model.py')
 
 # # Add embedding model to archive dataset
 # cnt = 34
