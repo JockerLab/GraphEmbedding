@@ -5,6 +5,8 @@ import zipfile
 from KD_Lib.models import ResNet18, LeNet, Shallow, ModLeNet, LSTMNet, NetworkInNetwork
 
 from torchvision.models import alexnet, resnet101, densenet201, googlenet, inception_v3, mnasnet1_3, mobilenet_v3_large, squeezenet1_1, vgg19_bn
+
+from convert import Converter
 from graph import NeuralNetworkGraph
 from models.generated.generated_models import *
 from models.original.original_unet import UNet
@@ -51,30 +53,34 @@ models = {
 # 'mnasnet1_3': models.mnasnet1_3(),
 # 'gen1':    GeneratedModel1(),
 # 'GeneratedDensenet': GeneratedDensenet()
+# 'classification': NaturalSceneClassification()
 }
 
+model = Net1()
+xs = torch.zeros(1, 28 * 28)
+g = NeuralNetworkGraph(model=model, test_batch=xs)
+# embedding = g.get_naive_embedding()
+# graph = NeuralNetworkGraph.get_graph(embedding)
+Converter(g, filepath='./generated_net.py', model_name='Tmp')
 
-model = torch.load('./models/original/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth')
-model.eval()
-xs = torch.zeros([4, 3, 224, 224])
-model(xs)
 
-
-cnt = 33
-with zipfile.ZipFile('./data/embeddings/embeddings-zip.zip', 'a') as archive:
-    for name, model in models.items():
-        print(f'{name} model is processing')
-        cnt += 1
-        xs = torch.zeros([4, 3, 224, 224])
-        if name == 'inception':
-            xs = torch.zeros([4, 3, 299, 299])
-        g = NeuralNetworkGraph(model=model, test_batch=xs)
-        embedding = g.get_naive_embedding()
-        for e in embedding:
-            for i in range(len(e)):
-                if e[i] == None:
-                    e[i] = -1
-        archive.writestr(f'{cnt}.json', json.dumps(embedding))
+# cnt = 34
+# with zipfile.ZipFile('./data/embeddings/embeddings-zip.zip', 'a') as archive:
+#     for name, model in models.items():
+#         print(f'{name} model is processing')
+#         cnt += 1
+#         xs = torch.zeros([4, 3, 224, 224])
+#         if name == 'inception':
+#             xs = torch.zeros([4, 3, 299, 299])
+#         if name == 'classification':
+#             xs = torch.zeros([128, 3, 150, 150])
+#         g = NeuralNetworkGraph(model=model, test_batch=xs)
+#         embedding = g.get_naive_embedding()
+#         for e in embedding:
+#             for i in range(len(e)):
+#                 if e[i] == None:
+#                     e[i] = -1
+#         archive.writestr(f'{cnt}.json', json.dumps(embedding))
 
 
 

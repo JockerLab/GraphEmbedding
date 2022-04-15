@@ -2,7 +2,7 @@ Experiments/
 .idea/
 __pycache__/
 */__pycache__/
-data/
+data/*
 layers.txt
 models/teacher.pt
-!data/embeddings
+!data/embeddings/

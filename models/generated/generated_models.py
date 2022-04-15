@@ -44,3 +44,58 @@ class GeneratedModel1(nn.Module):
 def GeneratedDensenet(pretrained: bool = False, progress: bool = True, **kwargs: Any):
     return _densenet('GeneratedDensenet', 32, (6, 32, 61, 48), 64, pretrained, progress,
                      **kwargs)
+
+
+class NaturalSceneClassification(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.network = nn.Sequential(
+
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+
+            nn.Flatten(),
+            nn.Linear(82944, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Linear(512, 6)
+        )
+
+    def forward(self, xb):
+        return self.network(xb)
+
+    from torch import nn
+
+
+class Net1(nn.Module):
+    def __init__(self):
+        super(Net1, self).__init__()
+        input_size = 784
+        hidden_sizes = [128, 64]
+        output_size = 10
+
+        self.model = nn.Sequential(nn.Linear(input_size, hidden_sizes[0]),
+                                   nn.ReLU(),
+                                   nn.Linear(hidden_sizes[0], hidden_sizes[1]),
+                                   nn.ReLU(),
+                                   nn.Linear(hidden_sizes[1], output_size),
+                                   nn.ReLU())
+
+    def forward(self, x):
+        return self.model(x)

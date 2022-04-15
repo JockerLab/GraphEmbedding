@@ -100,7 +100,7 @@ def epoch_time(start_time, end_time):
 
 
 if __name__ == '__main__':
-    hidden_size = 512
+    hidden_size = 100
     num_layers = 1  # 2
     dropout = 0  # 0.5
     N_EPOCHS = 20

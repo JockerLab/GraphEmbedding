@@ -199,8 +199,12 @@ class NeuralNetworkGraph(nx.DiGraph):
             size 2 (for linear), size 4 (for convolutional).
             """
             if not node['output_shape'] or node['output_shape'] == []:
-                output_shape = self.__input_shapes[id]
-                self.nodes[id]['output_shape'] = output_shape
+                output_shape = self.__input_shapes.get(id)
+                if output_shape:
+                    node['output_shape'] = output_shape
+                    self.nodes[id]['output_shape'] = output_shape
+                else:
+                    del node['output_shape']
 
             """
             Set node's parameters to embedding vector in order described in attribute_to_pos dictionary 

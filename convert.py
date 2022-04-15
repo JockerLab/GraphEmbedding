@@ -18,7 +18,10 @@ class Converter:
         self.node_to_operation = {}
         self.tabulation = '    '
         self.out_dim = {0: self.graph.nodes[0]['output_shape'][1]}
-        self.sequences = {1: [NetworkMapping.map_node(self.graph.nodes[0], 3, self.out_dim[0])]}
+        self.sequences = {}
+        self.is_flatten_needed = True
+        self.__default_input_shape = None
+        self.__init_first_sequence()
         self._graph_seq = nx.DiGraph()
         self._graph_seq.add_node(1, **{'op': self.graph.nodes[0]['op']})
         self.node_to_sequence = {0: 1}
@@ -30,6 +33,17 @@ class Converter:
             self.__write_model_init(file, model_name)
             self.__write_layers(file)
             self.__write_forward(file)
+
+    def __init_first_sequence(self):
+        if self.graph.nodes[0]['op'] == 'Conv':
+            self.__default_input_shape = '3'
+            self.sequences = {1: [NetworkMapping.map_node(self.graph.nodes[0], 'in_shape', self.out_dim[0])]}
+        else:
+            self.__default_input_shape = '224 * 224'
+            self.is_flatten_needed = False
+            self.sequences = {
+                1: [NetworkMapping.map_node(self.graph.nodes[0], 'in_shape', self.out_dim[0])]
+            }
 
     def __create_layers(self, cur_node):
         edges = self.graph.adj.get(cur_node)
@@ -59,7 +73,7 @@ class Converter:
                         self._graph_seq.add_node(current_sequence, **{'op': node['op']})
             array = self.sequences.get(current_sequence, [])
             if layer:
-                if node['op'] == 'Linear' and 'nn.Flatten()' not in array:
+                if node['op'] == 'Linear' and 'nn.Flatten()' not in array and self.is_flatten_needed:
                     array.append(NetworkMapping.map_node({'op': 'Flatten'}))
                 if not layer.startswith('#'):
                     array.append(layer)
@@ -155,7 +169,9 @@ class Converter:
         Converter.__write_line(file, 'import torch')
         Converter.__write_line(file, 'from torch import nn\n\n')
         Converter.__write_line(file, f'class {model_name}(nn.Module):\n')
-        Converter.__write_line(file, 'def __init__(self):', self.tabulation)
+        Converter.__write_line(file,
+                               f'def __init__(self, in_shape={self.__default_input_shape}):',
+                               self.tabulation)
         Converter.__write_line(file, f'super({model_name}, self).__init__()', self.tabulation * 2)
 
 
@@ -180,7 +196,7 @@ if __name__ == '__main__':
     # xs = torch.zeros([64, 3, 299, 299])  # for inception
 
     g1 = NeuralNetworkGraph(model=model, test_batch=xs)
-    network = Converter(g1, filepath='models/converted/converted_alexnet.py', model_name='ConvertedAlexNet')
+    # network = Converter(g1, filepath='models/converted/converted_wrn.py', model_name='ConvertedWRN')
     # g2 = NeuralNetworkGraph(model=ConvertedAlexNet1(), test_batch=xs)
     # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
     # print(message)
