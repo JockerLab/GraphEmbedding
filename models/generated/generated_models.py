@@ -10,19 +10,16 @@ class GeneratedModel1(nn.Module):
     def __init__(self):
         super(GeneratedModel1, self).__init__()
         self.seq0 = nn.Sequential(
-            nn.BatchNorm2d(num_features=3, eps=1e-05),
-        )
-        self.seq1 = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3),
                       dilation=(1, 1), groups=1),
+        )
+        self.seq1 = nn.Sequential(
             nn.BatchNorm2d(num_features=64, eps=1e-05),
             nn.ReLU(),
         )
         self.layers = nn.ModuleList()
         for i in range(1, 62):
             layer = nn.Sequential(
-                nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3),
-                          dilation=(1, 1), groups=1),
                 nn.BatchNorm2d(num_features=64, eps=1e-05),
                 nn.ReLU(),
             )

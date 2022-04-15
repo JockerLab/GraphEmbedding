@@ -5,6 +5,7 @@ import networkx as nx
 from mapping import NetworkMapping
 from models.converted.converted_squeezenet import ConvertedSqueezeNet
 import torch
+
 from models.original.original_alexnet import AlexNet
 
 
@@ -63,17 +64,20 @@ class Converter:
                 layer = NetworkMapping.map_node(node, old_dim, self.out_dim[v])
             if len(edges) > 1 \
                     or len(self.graph.pred[v]) > 1 \
-                    or (node['op'] in ['Concat', 'Pad'] and len(self.graph.pred[v]) <= 1):
+                    or (node['op'] in ['Concat', 'Pad', 'ReduceMean'] and len(self.graph.pred[v]) <= 1):
                 current_sequence = len(self.sequences) + 1
-                if node['op'] == 'Pad':
-                    if current_sequence not in self._graph_seq.nodes:
+                if current_sequence not in self._graph_seq.nodes:
+                    if node['op'] == 'Pad':
                         self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'pads': node['pads']})
-                else:
-                    if current_sequence not in self._graph_seq.nodes:
+                    elif node['op'] == 'ReduceMean':
+                        self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'axes': node['axes']})
+                    else:
                         self._graph_seq.add_node(current_sequence, **{'op': node['op']})
             array = self.sequences.get(current_sequence, [])
             if layer:
-                if node['op'] == 'Linear' and 'nn.Flatten()' not in array and self.is_flatten_needed:
+                if node['op'] in ['Flatten', 'ReduceMean']:
+                    self.is_flatten_needed = False
+                if node['op'] == 'Linear' and self.is_flatten_needed:
                     array.append(NetworkMapping.map_node({'op': 'Flatten'}))
                 if not layer.startswith('#'):
                     array.append(layer)
@@ -156,6 +160,12 @@ class Converter:
                                                f'x_{v} = torch.nn.functional.pad(x_{prev_seq}, {new_pads})',
                                                self.tabulation * 2)
                         cur_x_seq = v
+                elif self._graph_seq.nodes[v]['op'] == 'ReduceMean':
+                    prev_seq = next(iter(self._graph_seq.pred[v] if self._graph_seq.pred.get(v) else {0}))
+                    Converter.__write_line(file,
+                                           f'x_{v} = x_{prev_seq}.mean({self._graph_seq.nodes[v]["axes"]})',
+                                           self.tabulation * 2)
+                    cur_x_seq = v
 
                 if self.sequences[v]:
                     Converter.__write_line(file,
@@ -178,9 +188,9 @@ class Converter:
 if __name__ == '__main__':
     # model = resnet101()
     # model = NeuralNetwork()
-    model = AlexNet()
+    # model = AlexNet()
     # model = densenet201()
-    # model = mnasnet1_3()
+    model = mnasnet1_3()
     # model = squeezenet1_1()
     # model = resnet50()
     # model = vgg19_bn()
@@ -196,7 +206,7 @@ if __name__ == '__main__':
     # xs = torch.zeros([64, 3, 299, 299])  # for inception
 
     g1 = NeuralNetworkGraph(model=model, test_batch=xs)
-    # network = Converter(g1, filepath='models/converted/converted_wrn.py', model_name='ConvertedWRN')
-    # g2 = NeuralNetworkGraph(model=ConvertedAlexNet1(), test_batch=xs)
+    network = Converter(g1, filepath='models/converted/converted_mnasnet.py', model_name='ConvertedMnasNet')
+    # g2 = NeuralNetworkGraph(model=ConvertedMnasNet(), test_batch=xs)
     # is_equal, message = NeuralNetworkGraph.check_equality(g1, g2)
     # print(message)
