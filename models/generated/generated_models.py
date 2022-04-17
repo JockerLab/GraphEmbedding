@@ -5,6 +5,14 @@ import torch
 from torch import nn
 from torchvision.models.densenet import _densenet
 
+class Net11(nn.Module):
+    def __init__(self):
+        super(Net11, self).__init__()
+
+    def forward(self, x):
+        x = nn.AvgPool2d(3, stride=1, padding=0)(x)
+        return x
+
 
 class GeneratedModel1(nn.Module):
     def __init__(self):

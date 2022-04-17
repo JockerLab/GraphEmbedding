@@ -30,7 +30,7 @@ node_to_ops = {
     "Pad": 12,
     "ReduceMean": 13,
     "Tanh": 14,
-    "ConvTranspose": 15,
+    "ConvTranspose": 15
 }
 
 pads_to_mods = {
@@ -256,9 +256,11 @@ class NeuralNetworkGraph(nx.DiGraph):
                     embedding[attribute_to_pos[op_name]] = value
 
             edge_list = list(self.adj[id])
-            if len(edge_list) + ATTRIBUTES_POS_COUNT + 1 <= 1000:
+            if len(edge_list) + ATTRIBUTES_POS_COUNT + 1 <= NODE_EMBEDDING_DIMENSION:
                 embedding[ATTRIBUTES_POS_COUNT] = len(edge_list)
                 for i in range(0, len(edge_list)):
+                    if ATTRIBUTES_POS_COUNT + i + 1 > len(embedding):
+                        kek = 0
                     embedding[ATTRIBUTES_POS_COUNT + i + 1] = edge_list[i]
             else:
                 print('This graph is not supported!')
@@ -286,6 +288,7 @@ class NeuralNetworkGraph(nx.DiGraph):
                 print('Graph is not supported. This network is not supported.')
         except KeyError as e:
             print(f'Operation or layer is not supported: {e}.')
+            raise KeyError(f'Operation or layer is not supported: {e}.')
 
     @staticmethod
     def check_equality(graph1, graph2):

@@ -19,6 +19,7 @@ from torchvision import datasets
 import torch
 from torchvision import datasets, transforms as T
 import torchvision.models as models
+import timm
 
 
 # models = {
@@ -59,42 +60,87 @@ import torchvision.models as models
 # }
 
 
-embedding = [[None, None, None, None, None, None, None, 12, None, None, None, None, 49, None, None, None, 44, None, None, None, None, None, None, None, None, 19, None, 16, None, None, 29, None, None, 7, None, 2, None, 17, None, None, 49, 3, None, None, 48, 33, 9, None, None, None, None, None, None, None, 49, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, 41, None, 49, None, 21, None, 50, 18, None, None, None, None, None, None, None, None, None, 17, None, 50, None, None, 42, 21, None, 13, None], [None, 5, None, None, None, None, None, 1, None, None, None, None, None, 15, 50, None, None, 48, None, None, 0, None, 47, None, None, None, None, 1, None, None, None, 47, None, None, None, None, None, 43, 47, None, None, None, 46, 48, 29, None, 28, None, None, None, None, None, None, None, None, 16, None, None, 21, None, None, None, None, None, None, None, None, None, 17, None, None, None, 46, None, None, 13, 1, 9, None, None, None, None, 44, None, 20, None, None, None, 38, 27, 1, 33, None, None, None, None, 23, None, None, None]]
-graph = NeuralNetworkGraph.get_graph(embedding)
-print("Graph generated")
-Converter(graph, filepath='./tmp_model.py', model_name='Tmp')
-print("Model generated")
-os.remove('./tmp_model.py')
+model = Net11()
+xs = torch.zeros([1, 3, 224, 224])
+g = NeuralNetworkGraph(model=model, test_batch=xs)
+Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+kek = 0
 
-# # Test models convertation
+# def create_model_list(filters):
+#     model_names = []
+#     for filter in filters:
+#         model_names.extend(timm.list_models(filter))
+#     return model_names
+#
+# all_models = {}
+# with open('./models/original/timm_models.json', 'r') as f:
+#     all_models = json.load(f)
+# available_models = all_models['available']
+# error_models = all_models['with_error']
+# unsupported_models = all_models['unsupported']
+# model_names = create_model_list([
+#     'densenet121d',
+#     'densenet264',
+#     'tv_densenet121'
+# ])
+#
 # with open('./tmp_model.py', 'w') as f:
 #     f.write('')
 # import tmp_model
-# for name, model in models.items():
-#     print(f'{name} model is processing')
-#     xs = torch.zeros([4, 3, 224, 224])
-#     if name == 'inception':
-#         xs = torch.zeros([4, 3, 299, 299])
-#     if name == 'classification':
-#         xs = torch.zeros([128, 3, 150, 150])
+# for name in model_names:
+#     if name in available_models or name in error_models or name in unsupported_models:
+#         continue
+#     print(f"{name} model is processing:")
+#     model = timm.create_model(name)
+#     print(f"    - model was loaded")
+#     xs = torch.zeros([1, *model.default_cfg['input_size']])
 #     g = NeuralNetworkGraph(model=model, test_batch=xs)
-#     Converter(g, filepath='./tmp_model.py', model_name='Tmp')
-#     importlib.reload(tmp_model)
-#     print('    ->' + str(len(list(tmp_model.Tmp().modules()))))
-#     tmp_model.Tmp()(xs)
+#     try:
+#         g = NeuralNetworkGraph(model=model, test_batch=xs)
+#         print(f"    - graph was created")
+#         embedding = g.get_naive_embedding()
+#         print(f"    - embedding was got")
+#         Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+#         importlib.reload(tmp_model)
+#         tmp_model.Tmp()(xs)
+#         print(f"    - graph was converted")
+#         available_models.append(name)
+#     except Exception as e:
+#         if len(e.args) > 0 and e.args[0].startswith('Operation'):
+#             unsupported_models.append(name)
+#         else:
+#             error_models.append(name)
+#         print(f"    - an error occurred")
+#     finally:
+#         with open('./models/original/timm_models.json', 'w') as f:
+#             f.write(json.dumps({'available': available_models, 'with_error': error_models, 'unsupported': unsupported_models}))
+#         print('--------------------\n')
+#
+# print(f'Len of available models: {len(available_models)}')
+# print(f'Len of models with errors: {len(error_models)}')
+# print(f'Len of unsupported models: {len(unsupported_models)}')
 # os.remove('./tmp_model.py')
 
+
+
+# models = {
+#     'densenet121d':timm.create_model('densenet121d'),
+#     'densenet264':timm.create_model('densenet264'),
+#     'tv_densenet121':timm.create_model('tv_densenet121')
+# }
+#
 # # Add embedding model to archive dataset
-# cnt = 34
+# cnt = 38
 # with zipfile.ZipFile('./data/embeddings/embeddings-zip.zip', 'a') as archive:
 #     for name, model in models.items():
 #         print(f'{name} model is processing')
 #         cnt += 1
-#         xs = torch.zeros([4, 3, 224, 224])
-#         if name == 'inception':
-#             xs = torch.zeros([4, 3, 299, 299])
-#         if name == 'classification':
-#             xs = torch.zeros([128, 3, 150, 150])
+#         xs = torch.zeros([1, *model.default_cfg['input_size']])
+#         # xs = torch.zeros([4, 3, 224, 224])
+#         # if name == 'inception':
+#         #     xs = torch.zeros([4, 3, 299, 299])
+#         # if name == 'classification':
+#         #     xs = torch.zeros([128, 3, 150, 150])
 #         g = NeuralNetworkGraph(model=model, test_batch=xs)
 #         embedding = g.get_naive_embedding()
 #         for e in embedding:

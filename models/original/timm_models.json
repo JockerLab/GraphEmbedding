@@ -1,0 +1,1 @@
+{"available": ["adv_inception_v3", "convmixer_768_32", "convmixer_1024_20_ks9_p14", "convmixer_1536_20", "densenet121d", "densenet264", "tv_densenet121"], "with_error": [], "unsupported": []}

@@ -18,7 +18,8 @@ class Converter:
         self.node_to_layer = {}
         self.node_to_operation = {}
         self.tabulation = '    '
-        self.out_dim = {0: self.graph.nodes[0]['output_shape'][1]}
+        first_dim_node = 0 if 'output_shape' in self.graph.nodes[0] else next(iter(self.graph.adj[0]))
+        self.out_dim = {0: self.graph.nodes[first_dim_node]['output_shape'][1]}
         self.sequences = {}
         self.is_flatten_needed = True
         self.__default_input_shape = None
