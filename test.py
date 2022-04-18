@@ -60,12 +60,14 @@ import timm
 # }
 
 
-# TODO: fix pad 0
-model = Net11()
-xs = torch.zeros([1, 3, 224, 224])
-g = NeuralNetworkGraph(model=model, test_batch=xs)
-Converter(g, filepath='./tmp_model.py', model_name='Tmp')
-kek = 0
+# # TODO: fix pad 0
+# from tmp_model import Tmp
+# model = Tmp()
+# xs = torch.zeros([1, 3, 224, 224])
+# model(xs)
+# g = NeuralNetworkGraph(model=model, test_batch=xs)
+# Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+# kek = 0
 
 
 
@@ -82,7 +84,9 @@ available_models = all_models['available']
 error_models = all_models['with_error']
 unsupported_models = all_models['unsupported']
 model_names = create_model_list([
-    'convmixer*',
+    # '*ghostnet*'
+    # 'gluon_resnet18_v1b'
+    '*gluon_*'
 ])
 
 with open('./tmp_model.py', 'w') as f:

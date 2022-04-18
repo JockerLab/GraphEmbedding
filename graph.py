@@ -35,6 +35,7 @@ node_to_ops = {
     "Elu": 17,
     "Constant": 18,
     "Reshape": 19,
+    "Mul": 20,
 }
 
 pads_to_mods = {
@@ -256,7 +257,8 @@ class NeuralNetworkGraph(nx.DiGraph):
                     if param == 'mode' and node['op'] == 'Pad':
                         value = pads_to_mods[value]
                     if op_name in attribute_to_pos:
-                        embedding[attribute_to_pos[op_name]] = value
+                        cur_pos = attribute_to_pos[op_name][0] if isinstance(attribute_to_pos[op_name], list) else attribute_to_pos[op_name]
+                        embedding[cur_pos] = value
 
             edge_list = list(self.adj[id])
             if len(edge_list) + ATTRIBUTES_POS_COUNT + 1 <= NODE_EMBEDDING_DIMENSION:

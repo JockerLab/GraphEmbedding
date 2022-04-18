@@ -61,7 +61,7 @@ class Converter:
             layer = None
             old_dim = self.out_dim[cur_node]
             self.out_dim[v] = node['output_shape'][1] if node['output_shape'] else old_dim
-            if node['op'] not in ['Concat', 'Add']:
+            if node['op'] not in ['Concat', 'Add', 'Mul']:
                 if self.graph.nodes[cur_node]['op'] != 'Pad' and node['op'] == 'AveragePool':
                     node['op'] = 'AdaptiveAveragePool'
                 layer = NetworkMapping.map_node(node, old_dim, self.out_dim[v])
@@ -73,7 +73,7 @@ class Converter:
                     if node['op'] == 'Pad':
                         self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'pads': node['pads']})
                     elif node['op'] == 'ReduceMean':
-                        self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'axes': node['axes']})
+                        self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'axes': node['axes'], 'keepdims': node['keepdims']})
                     elif node['op'] == 'Slice':
                         self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'node': node})
                     elif node['op'] == 'Reshape':
@@ -138,11 +138,21 @@ class Converter:
                         Converter.__write_line(file,
                                                f'x_{v} = self.seq{v}(x_{v})',
                                                self.tabulation * 2)
-                if self._graph_seq.nodes[v]['op'] == 'Add':
+                elif self._graph_seq.nodes[v]['op'] == 'Add':
                     inputs = []
                     for u in self._graph_seq.pred[v]:
                         inputs.append(f'x_{u}')
                     Converter.__write_line(file, f'x_{v} = {" + ".join(map(str, inputs))}',
+                                           self.tabulation * 2)
+                    if len(self.sequences[v]) > 0:
+                        Converter.__write_line(file,
+                                               f'x_{v} = self.seq{v}(x_{v})',
+                                               self.tabulation * 2)
+                elif self._graph_seq.nodes[v]['op'] == 'Mul':
+                    inputs = []
+                    for u in self._graph_seq.pred[v]:
+                        inputs.append(f'x_{u}')
+                    Converter.__write_line(file, f'x_{v} = torch.mul({", ".join(map(str, inputs))})',
                                            self.tabulation * 2)
                     if len(self.sequences[v]) > 0:
                         Converter.__write_line(file,
@@ -170,7 +180,7 @@ class Converter:
                 elif self._graph_seq.nodes[v]['op'] == 'ReduceMean':
                     prev_seq = next(iter(self._graph_seq.pred[v] if self._graph_seq.pred.get(v) else {0}))
                     Converter.__write_line(file,
-                                           f'x_{v} = x_{prev_seq}.mean({self._graph_seq.nodes[v]["axes"]})',
+                                           f'x_{v} = x_{prev_seq}.mean({self._graph_seq.nodes[v]["axes"]}, keepdim={str(self._graph_seq.nodes[v]["keepdims"] == 1)})',
                                            self.tabulation * 2)
                     cur_x_seq = v
                 elif self._graph_seq.nodes[v]['op'] == 'Slice':
