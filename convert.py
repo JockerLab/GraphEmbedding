@@ -60,17 +60,17 @@ class Converter:
             # Skip concat and add
             layer = None
             old_dim = self.out_dim[cur_node]
-            self.out_dim[v] = node['output_shape'][1] if node['output_shape'] else old_dim
+            self.out_dim[v] = node['output_shape'][1] if node.get('output_shape') else old_dim
             if node['op'] not in ['Concat', 'Add', 'Mul']:
                 if self.graph.nodes[cur_node]['op'] != 'Pad' and node['op'] == 'AveragePool':
                     node['op'] = 'AdaptiveAveragePool'
                 layer = NetworkMapping.map_node(node, old_dim, self.out_dim[v])
             if len(edges) > 1 \
                     or len(self.graph.pred[v]) > 1 \
-                    or (node['op'] in ['Concat', 'Pad', 'ReduceMean', 'Slice', 'Reshape'] and len(self.graph.pred[v]) <= 1):
+                    or (node['op'] in ['Concat', 'Pad', 'ReduceMean', 'Slice', 'Reshape', 'Transpose'] and len(self.graph.pred[v]) <= 1):
                 current_sequence = len(self.sequences) + 1
                 if current_sequence not in self._graph_seq.nodes:
-                    if node['op'] in ['Pad', 'ReduceMean', 'Slice', 'Reshape']:
+                    if node['op'] in ['Pad', 'ReduceMean', 'Slice', 'Reshape', 'Transpose']:
                         self._graph_seq.add_node(current_sequence, **{'op': node['op'], 'node': node})
                     else:
                         self._graph_seq.add_node(current_sequence, **{'op': node['op']})
@@ -196,6 +196,12 @@ class Converter:
                     prev_seq = next(iter(self._graph_seq.pred[v] if self._graph_seq.pred.get(v) else {0}))
                     Converter.__write_line(file,
                                            f'x_{v} = x_{prev_seq}.view({", ".join(list(map(str, self._graph_seq.nodes[v]["node"]["output_shape"])))})',
+                                           self.tabulation * 2)
+                    cur_x_seq = v
+                elif self._graph_seq.nodes[v]['op'] == 'Transpose':
+                    prev_seq = next(iter(self._graph_seq.pred[v] if self._graph_seq.pred.get(v) else {0}))
+                    Converter.__write_line(file,
+                                           f'x_{v} = x_{prev_seq}.permute({self._graph_seq.nodes[v]["node"]["perm"]})',
                                            self.tabulation * 2)
                     cur_x_seq = v
 

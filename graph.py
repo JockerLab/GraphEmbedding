@@ -11,8 +11,8 @@ import json
 from functools import reduce
 
 
-ATTRIBUTES_POS_COUNT = 46
-NODE_EMBEDDING_DIMENSION = 109
+ATTRIBUTES_POS_COUNT = 50
+NODE_EMBEDDING_DIMENSION = 113
 NONE_REPLACEMENT = -1
 
 node_to_ops = {
@@ -37,6 +37,8 @@ node_to_ops = {
     "Constant": 18,
     "Reshape": 19,
     "Mul": 20,
+    "Transpose": 21,
+    "LogSoftmax": 22,
 }
 
 pads_to_mods = {
@@ -65,7 +67,8 @@ attribute_to_pos = {
     "steps": [36, 37, 38, 39],
     "strides": [40, 41],
     "value": [42, 43, 44, 45],
-    # "skip_connections": [46, ...]
+    "perm": [46, 47, 48, 49]
+    # "skip_connections": [50, ...]
 }
 
 reversed_attributes = {
@@ -87,8 +90,9 @@ reversed_attributes = {
     36: {'op': 'steps', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
     40: {'op': 'strides', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
     42: {'op': 'value', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
-    46: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
-    47: {'type': 'int', 'range': [0, float('inf')]},
+    46: {'op': 'perm', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
+    50: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
+    51: {'type': 'int', 'range': [0, float('inf')]},
 }
 
 # autoencoder = Autoencoder()

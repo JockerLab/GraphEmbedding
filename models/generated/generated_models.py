@@ -8,15 +8,12 @@ from torchvision.models.densenet import _densenet
 class Net11(nn.Module):
     def __init__(self):
         super(Net11, self).__init__()
-        self.linear = nn.Linear(784, 100)
-        self.relu = nn.ReLU()
-        self.leaky_relu = nn.LeakyReLU()
-        self.conv = nn.Conv2d(1, 2, (2, 2))
-        self.sigmoid = nn.Sigmoid()
+        self.conv = nn.Conv2d(3, 64, (2, 2))
+        self.log_softmax = nn.LogSoftmax()
 
     def forward(self, x):
-        x = x.view(1, 1, 2, -1)
         x = self.conv(x)
+        x = self.log_softmax(x)
         return x
 
 
