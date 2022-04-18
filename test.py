@@ -60,13 +60,15 @@ import timm
 # }
 
 
-# # TODO: fix pad 0
-# from tmp_model import Tmp
-# model = Tmp()
-# xs = torch.zeros([1, 3, 224, 224])
-# model(xs)
+# import tmp_model
+# # # TODO: fix pad 0
+# model = Net11()
+# xs = torch.zeros([64, 1, 28, 28])
 # g = NeuralNetworkGraph(model=model, test_batch=xs)
-# Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+# g1 = NeuralNetworkGraph.get_graph(g.get_naive_embedding())
+# Converter(g1, filepath='./tmp_model.py', model_name='Tmp')
+# importlib.reload(tmp_model)
+# tmp_model.Tmp()(xs)
 # kek = 0
 
 
@@ -86,15 +88,15 @@ unsupported_models = all_models['unsupported']
 model_names = create_model_list([
     # '*ghostnet*'
     # 'gluon_resnet18_v1b'
-    '*gluon_*'
+    # '*gluon_*'
 ])
 
 with open('./tmp_model.py', 'w') as f:
     f.write('')
 import tmp_model
-for name in model_names:
-    if name in available_models or name in error_models or name in unsupported_models:
-        continue
+for name in available_models:  # TODO: --> model_names
+    # if name in available_models or name in unsupported_models or name in error_models:
+    #     continue
     print(f"{name} model is processing:")
     model = timm.create_model(name)
     print(f"    - model was loaded")
@@ -108,16 +110,18 @@ for name in model_names:
         importlib.reload(tmp_model)
         tmp_model.Tmp()(xs)
         print(f"    - graph was converted")
-        available_models.append(name)
+        # available_models.append(name)
     except Exception as e:
         if len(e.args) > 0 and e.args[0].startswith('Operation'):
-            unsupported_models.append(name)
+            pass
+            # unsupported_models.append(name)
         else:
-            error_models.append(name)
+            pass
+            # error_models.append(name)
         print(f"    - an error occurred")
     finally:
-        with open('./models/original/timm_models.json', 'w') as f:
-            f.write(json.dumps({'available': available_models, 'with_error': error_models, 'unsupported': unsupported_models}))
+        # with open('./models/original/timm_models.json', 'w') as f:
+        #     f.write(json.dumps({'available': available_models, 'with_error': error_models, 'unsupported': unsupported_models}))
         print('--------------------\n')
 
 print(f'Len of available models: {len(available_models)}')

@@ -8,6 +8,7 @@ import hiddenlayer as hl
 import torch
 import pandas
 import json
+from functools import reduce
 
 
 ATTRIBUTES_POS_COUNT = 46
@@ -83,10 +84,11 @@ reversed_attributes = {
     20: {'op': 'output_shape', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
     24: {'op': 'pads', 'len': 8, 'type': 'int', 'range': [0, float('inf')]},
     32: {'op': 'starts', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
-    36: {'op': 'starts', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
+    36: {'op': 'steps', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
     40: {'op': 'strides', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
-    42: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
-    43: {'type': 'int', 'range': [0, float('inf')]},
+    42: {'op': 'value', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
+    46: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
+    47: {'type': 'int', 'range': [0, float('inf')]},
 }
 
 # autoencoder = Autoencoder()
@@ -211,7 +213,6 @@ class NeuralNetworkGraph(nx.DiGraph):
 
     def __is_supported(self, v):
         """Check if graph is supported"""
-        # TODO: change
         self.__colors[v] = 1
         result = True
         for u in self.adj[v]:

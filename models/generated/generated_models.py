@@ -8,12 +8,15 @@ from torchvision.models.densenet import _densenet
 class Net11(nn.Module):
     def __init__(self):
         super(Net11, self).__init__()
-        self.s1 = nn.Conv2d(3, 64, 3)
+        self.linear = nn.Linear(784, 100)
+        self.relu = nn.ReLU()
+        self.leaky_relu = nn.LeakyReLU()
+        self.conv = nn.Conv2d(1, 2, (2, 2))
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        # x = nn.AvgPool2d(3, stride=1, padding=0)(x)
-        x = self.s1(x)
-        x = torch.reshape(x, (1, -1))
+        x = x.view(1, 1, 2, -1)
+        x = self.conv(x)
         return x
 
 
