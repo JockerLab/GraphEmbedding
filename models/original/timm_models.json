@@ -1,1 +1,1 @@
-{"available": ["adv_inception_v3", "convmixer_768_32", "convmixer_1024_20_ks9_p14", "convmixer_1536_20", "densenet121d", "densenet264", "tv_densenet121"], "with_error": [], "unsupported": []}
+{"available": ["adv_inception_v3", "convmixer_768_32", "convmixer_1024_20_ks9_p14", "convmixer_1536_20", "densenet121d", "densenet264", "tv_densenet121", "dla34", "dla46_c", "dla46x_c", "dla60", "dla60x", "dla60x_c", "dla102", "dla102x", "dla102x2", "dla169", "dpn68", "dpn68b", "dpn92", "dpn98", "dpn107", "dpn131"], "with_error": [], "unsupported": ["dla60_res2net", "dla60_res2next"]}

@@ -60,77 +60,75 @@ import timm
 # }
 
 
+# TODO: fix pad 0
 model = Net11()
 xs = torch.zeros([1, 3, 224, 224])
 g = NeuralNetworkGraph(model=model, test_batch=xs)
 Converter(g, filepath='./tmp_model.py', model_name='Tmp')
 kek = 0
 
-# def create_model_list(filters):
-#     model_names = []
-#     for filter in filters:
-#         model_names.extend(timm.list_models(filter))
-#     return model_names
-#
-# all_models = {}
-# with open('./models/original/timm_models.json', 'r') as f:
-#     all_models = json.load(f)
-# available_models = all_models['available']
-# error_models = all_models['with_error']
-# unsupported_models = all_models['unsupported']
-# model_names = create_model_list([
-#     'densenet121d',
-#     'densenet264',
-#     'tv_densenet121'
-# ])
-#
-# with open('./tmp_model.py', 'w') as f:
-#     f.write('')
-# import tmp_model
+
+
+def create_model_list(filters):
+    model_names = []
+    for filter in filters:
+        model_names.extend(timm.list_models(filter))
+    return model_names
+
+all_models = {}
+with open('./models/original/timm_models.json', 'r') as f:
+    all_models = json.load(f)
+available_models = all_models['available']
+error_models = all_models['with_error']
+unsupported_models = all_models['unsupported']
+model_names = create_model_list([
+    'convmixer*',
+])
+
+with open('./tmp_model.py', 'w') as f:
+    f.write('')
+import tmp_model
+for name in model_names:
+    if name in available_models or name in error_models or name in unsupported_models:
+        continue
+    print(f"{name} model is processing:")
+    model = timm.create_model(name)
+    print(f"    - model was loaded")
+    xs = torch.zeros([1, *model.default_cfg['input_size']])
+    try:
+        g = NeuralNetworkGraph(model=model, test_batch=xs)
+        print(f"    - graph was created")
+        embedding = g.get_naive_embedding()
+        print(f"    - embedding was got")
+        Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+        importlib.reload(tmp_model)
+        tmp_model.Tmp()(xs)
+        print(f"    - graph was converted")
+        available_models.append(name)
+    except Exception as e:
+        if len(e.args) > 0 and e.args[0].startswith('Operation'):
+            unsupported_models.append(name)
+        else:
+            error_models.append(name)
+        print(f"    - an error occurred")
+    finally:
+        with open('./models/original/timm_models.json', 'w') as f:
+            f.write(json.dumps({'available': available_models, 'with_error': error_models, 'unsupported': unsupported_models}))
+        print('--------------------\n')
+
+print(f'Len of available models: {len(available_models)}')
+print(f'Len of models with errors: {len(error_models)}')
+print(f'Len of unsupported models: {len(unsupported_models)}')
+os.remove('./tmp_model.py')
+
+
+
+# models = {}
 # for name in model_names:
-#     if name in available_models or name in error_models or name in unsupported_models:
-#         continue
-#     print(f"{name} model is processing:")
-#     model = timm.create_model(name)
-#     print(f"    - model was loaded")
-#     xs = torch.zeros([1, *model.default_cfg['input_size']])
-#     g = NeuralNetworkGraph(model=model, test_batch=xs)
-#     try:
-#         g = NeuralNetworkGraph(model=model, test_batch=xs)
-#         print(f"    - graph was created")
-#         embedding = g.get_naive_embedding()
-#         print(f"    - embedding was got")
-#         Converter(g, filepath='./tmp_model.py', model_name='Tmp')
-#         importlib.reload(tmp_model)
-#         tmp_model.Tmp()(xs)
-#         print(f"    - graph was converted")
-#         available_models.append(name)
-#     except Exception as e:
-#         if len(e.args) > 0 and e.args[0].startswith('Operation'):
-#             unsupported_models.append(name)
-#         else:
-#             error_models.append(name)
-#         print(f"    - an error occurred")
-#     finally:
-#         with open('./models/original/timm_models.json', 'w') as f:
-#             f.write(json.dumps({'available': available_models, 'with_error': error_models, 'unsupported': unsupported_models}))
-#         print('--------------------\n')
-#
-# print(f'Len of available models: {len(available_models)}')
-# print(f'Len of models with errors: {len(error_models)}')
-# print(f'Len of unsupported models: {len(unsupported_models)}')
-# os.remove('./tmp_model.py')
-
-
-
-# models = {
-#     'densenet121d':timm.create_model('densenet121d'),
-#     'densenet264':timm.create_model('densenet264'),
-#     'tv_densenet121':timm.create_model('tv_densenet121')
-# }
+#     models[name] = timm.create_model(name)
 #
 # # Add embedding model to archive dataset
-# cnt = 38
+# cnt = 41
 # with zipfile.ZipFile('./data/embeddings/embeddings-zip.zip', 'a') as archive:
 #     for name, model in models.items():
 #         print(f'{name} model is processing')
