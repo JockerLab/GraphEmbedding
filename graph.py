@@ -1,3 +1,5 @@
+import sys
+
 import networkx as nx
 from torchvision.models import resnet101, densenet201, vgg19_bn, mnasnet1_3, squeezenet1_1, resnet50, \
     inception_v3
@@ -14,6 +16,7 @@ from functools import reduce
 ATTRIBUTES_POS_COUNT = 50
 NODE_EMBEDDING_DIMENSION = 113
 NONE_REPLACEMENT = -1
+MAX_NODE = 10_000
 
 node_to_ops = {
     "Conv": 0,
@@ -76,7 +79,7 @@ reversed_attributes = {
     1: {'op': 'axes', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
     5: {'op': 'axis', 'len': 1, 'type': 'int', 'range': [0, float('inf')]},
     6: {'op': 'dilations', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
-    8: {'op': 'ends', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
+    8: {'op': 'ends', 'len': 4, 'type': 'int', 'range': [0, sys.maxsize]},
     12: {'op': 'epsilon', 'len': 1, 'type': 'float', 'range': [0.0, float('inf')]},
     13: {'op': 'group', 'len': 1, 'type': 'int', 'range': [0, float('inf')]},
     14: {'op': 'keepdims', 'len': 1, 'type': 'int', 'range': [0, float('inf')]},
@@ -86,13 +89,13 @@ reversed_attributes = {
     19: {'op': 'op', 'len': 1, 'type': 'int', 'range': [0, len(node_to_ops)]},
     20: {'op': 'output_shape', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
     24: {'op': 'pads', 'len': 8, 'type': 'int', 'range': [0, float('inf')]},
-    32: {'op': 'starts', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
-    36: {'op': 'steps', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
+    32: {'op': 'starts', 'len': 4, 'type': 'int', 'range': [0, sys.maxsize]},
+    36: {'op': 'steps', 'len': 4, 'type': 'int', 'range': [0, sys.maxsize]},
     40: {'op': 'strides', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
     42: {'op': 'value', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
-    46: {'op': 'perm', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
+    46: {'op': 'perm', 'len': 4, 'type': 'int', 'range': [0, 4]},
     50: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
-    51: {'type': 'int', 'range': [0, float('inf')]},
+    51: {'type': 'int', 'range': [0, MAX_NODE]},
 }
 
 # autoencoder = Autoencoder()
@@ -134,7 +137,7 @@ class NeuralNetworkGraph(nx.DiGraph):
                 else:
                     n = attr['len']
                 for i in range(n):
-                    if not embedding[e][pos + i]:
+                    if embedding[e][pos + i] is None:
                         continue
                     if attr['type'] == 'int':
                         embedding[e][pos + i] = int(round(embedding[e][pos + i]))
@@ -154,7 +157,7 @@ class NeuralNetworkGraph(nx.DiGraph):
     def replace_none_in_embedding(embedding, is_need_replace=True):
         for i in range(len(embedding)):
             for j in range(len(embedding[i])):
-                if is_need_replace and not embedding[i][j]:
+                if is_need_replace and embedding[i][j] is None:
                     embedding[i][j] = NONE_REPLACEMENT
                 if not is_need_replace and round(embedding[i][j]) == NONE_REPLACEMENT:
                     embedding[i][j] = None

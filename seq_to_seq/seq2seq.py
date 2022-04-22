@@ -2,6 +2,7 @@ import random
 
 import torch
 from torch import nn
+from graph import MAX_NODE
 
 
 class Seq2Seq(nn.Module):
@@ -35,3 +36,26 @@ class Seq2Seq(nn.Module):
             input = target[:, i, :] if random.random() < teacher_forcing_ratio else output
 
         return outputs, context_hidden, context_cell
+
+    def encode(self, source):
+        # source: (batch_size, embedding_dim, node_dim)
+        hidden, cell = self.encoder(source)
+        return torch.cat([hidden.view(-1), cell.view(-1)])
+
+    def decode(self, embedding, node_embedding_size, SOS_token, EOS_token, num_layers=1, batch_size=1):
+        embedding_len = embedding.size(dim=0)
+        hidden = embedding[:(embedding_len // 2)].view(num_layers, 1, -1)
+        cell = embedding[(embedding_len // 2):].view(num_layers, 1, -1)
+        input = SOS_token.view(1, -1)
+        outputs = torch.zeros(batch_size, node_embedding_size)
+        for i in range(MAX_NODE):
+            output, hidden, cell = self.decoder(input, hidden, cell)
+            # output: (1, output_size)
+            # hidden: (num_layers, batch_size, hidden_size)
+            # cell: (num_layers, batch_size, hidden_size)
+
+            outputs = torch.cat([outputs, output])
+            input = output
+            if torch.allclose(EOS_token, output, rtol=1e-2, atol=1e-3):
+                break
+        return outputs

@@ -3,7 +3,8 @@ import importlib
 import json
 import os
 import zipfile
-
+import timeit
+from pytorchcv.model_provider import get_model as ptcv_get_model, _models as ptcv_models
 from KD_Lib.models import ResNet18, LeNet, Shallow, ModLeNet, LSTMNet, NetworkInNetwork
 
 from torchvision.models import alexnet, resnet101, densenet201, googlenet, inception_v3, mnasnet1_3, mobilenet_v3_large, squeezenet1_1, vgg19_bn
@@ -20,7 +21,7 @@ import torch
 from torchvision import datasets, transforms as T
 import torchvision.models as models
 import timm
-
+from timm.models.resnet import ResNet, BasicBlock, Bottleneck
 
 # models = {
 # 'resnet18': models.resnet18(),
@@ -72,91 +73,130 @@ import timm
 # kek = 0
 
 
+# # TIMM models
+# def create_model_list(filters):
+#     model_names = []
+#     for filter in filters:
+#         model_names.extend(timm.list_models(filter))
+#     return model_names
+#
+# all_models = {}
+# with open('./models/original/timm_models.json', 'r') as f:
+#     all_models = json.load(f)
+# available_models = all_models['available']
+#
+# model_names = timm.list_models()
+#
+# with open('./tmp_model.py', 'w') as f:
+#     f.write('')
+# import tmp_model
+# flag = True
+# for name in model_names:
+#     if (name != 'xcit_large_24_p8_384_dist' and flag) or name.startswith('cait') or name.startswith('beit') or name.startswith('coat') or name.startswith('convit') or name.startswith('deit') or name.startswith('levit') or name.startswith('vit') or name.startswith('tf') or name.startswith('nfnet') or name.startswith('xcit') or name.startswith('twins') or 'bit' in name:
+#         if name == 'xcit_large_24_p8_384_dist':
+#             flag = False
+#         continue
+#     print(f"{name} model is processing:")
+#     try:
+#         if name in available_models:
+#             model = timm.create_model(name, output_stride=32)
+#         else:
+#             model = timm.create_model(name)
+#         xs = torch.zeros([1, *model.default_cfg['input_size']])
+#         g = NeuralNetworkGraph(model=model, test_batch=xs)
+#         embedding = g.get_naive_embedding()
+#         Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+#         importlib.reload(tmp_model)
+#         tmp_model.Tmp()(xs)
+#         with zipfile.ZipFile('./data/embeddings/embeddings-zip-timm.zip', 'a') as archive:
+#             for e in embedding:
+#                 for i in range(len(e)):
+#                     if e[i] == None:
+#                         e[i] = -1
+#             file_name = f'timm--{name}.json'
+#             if name in available_models:
+#                 file_name = f'timm-generated--{name}.json'
+#             archive.writestr(file_name, json.dumps(embedding))
+#         print(f"    - ok")
+#     except Exception as e:
+#         print(f"    - an error occurred: {e}")
+#         # failed_models.append(name)
+#         # with open('./models/original/foz_models.json', 'w') as f:
+#         #     f.write(json.dumps({'available': available_models, 'failed': failed_models}))
+#     print('--------------------\n')
+# os.remove('./tmp_model.py')
 
-def create_model_list(filters):
-    model_names = []
-    for filter in filters:
-        model_names.extend(timm.list_models(filter))
-    return model_names
 
-all_models = {}
-with open('./models/original/timm_models.json', 'r') as f:
-    all_models = json.load(f)
-available_models = all_models['available']
-error_models = all_models['with_error']
-unsupported_models = all_models['unsupported']
-model_names = create_model_list([
-    '*regnet*', '*resnet*',
-    '*poolformer*',
-    '*res2net*',
-    '*resne*',
-    '*rexne*',
-])
 
+
+
+
+pool_list = ['avgmax', 'max']
+blocks = [BasicBlock, Bottleneck]
 with open('./tmp_model.py', 'w') as f:
     f.write('')
 import tmp_model
-for name in model_names:  # TODO: --> model_names
-    if name in available_models or name in unsupported_models or name in error_models:
-        continue
-    print(f"{name} model is processing:")
-    model = timm.create_model(name)
-    print(f"    - model was loaded")
-    xs = torch.zeros([1, *model.default_cfg['input_size']])
-    try:
-        g = NeuralNetworkGraph(model=model, test_batch=xs)
-        print(f"    - graph was created")
-        embedding = g.get_naive_embedding()
-        print(f"    - embedding was got")
-        Converter(g, filepath='./tmp_model.py', model_name='Tmp')
-        importlib.reload(tmp_model)
-        tmp_model.Tmp()(xs)
-        print(f"    - graph was converted")
-        available_models.append(name)
-    except Exception as e:
-        if len(e.args) > 0 and e.args[0].startswith('Operation'):
-            unsupported_models.append(name)
-            pass
-        else:
-            error_models.append(name)
-            pass
-        print(f"    - an error occurred")
-    finally:
-        with open('./models/original/timm_models.json', 'w') as f:
-            f.write(json.dumps({'available': available_models, 'with_error': error_models, 'unsupported': unsupported_models}))
-        print('--------------------\n')
+cnt = 0
 
-print(f'Len of available models: {len(available_models)}')
-print(f'Len of models with errors: {len(error_models)}')
-print(f'Len of unsupported models: {len(unsupported_models)}')
+for l_1 in [4, 8, 16, 32, 64]:
+    for l_2 in [4, 8, 16, 32, 64]:
+        for l_3 in [4, 8, 16, 32, 64]:
+            for l_4 in [4, 8, 16, 32, 64]:
+                for pool in pool_list:
+                    for block in blocks:
+                        if pool == 'avgmax' and isinstance(block, BasicBlock):
+                            continue
+                        try:
+                            model = ResNet(block, layers=[l_1, l_2, l_3, l_4], in_chans=3, global_pool=pool)
+                            xs = torch.zeros([1, 3, 224, 224])
+                            g = NeuralNetworkGraph(model=model, test_batch=xs)
+                            embedding = g.get_naive_embedding()
+                            Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+                            importlib.reload(tmp_model)
+                            tmp_model.Tmp()(xs)
+                            cnt += 1
+                            if cnt == 3:
+                                cnt = 400
+                            with zipfile.ZipFile('./data/embeddings/embeddings-zip-gen-timm.zip', 'a') as archive:
+                                for e in embedding:
+                                    for i in range(len(e)):
+                                        if e[i] == None:
+                                            e[i] = -1
+                                archive.writestr(f'generated-timm--resnet_{cnt}.json', json.dumps(embedding))
+                        except Exception as e:
+                            pass
 os.remove('./tmp_model.py')
+
 
 
 
 # models = {}
 # for name in model_names:
 #     models[name] = timm.create_model(name)
-#
+
 # # Add embedding model to archive dataset
-# cnt = 41
-# with zipfile.ZipFile('./data/embeddings/embeddings-zip.zip', 'a') as archive:
+# with open('./tmp_model.py', 'w') as f:
+#     f.write('')
+# import tmp_model
+# with zipfile.ZipFile('./data/embeddings/embeddings-zip-torch.zip', 'a') as archive:
 #     for name, model in models.items():
 #         print(f'{name} model is processing')
-#         cnt += 1
-#         xs = torch.zeros([1, *model.default_cfg['input_size']])
-#         # xs = torch.zeros([4, 3, 224, 224])
-#         # if name == 'inception':
-#         #     xs = torch.zeros([4, 3, 299, 299])
-#         # if name == 'classification':
-#         #     xs = torch.zeros([128, 3, 150, 150])
+#         xs = torch.zeros([4, 3, 224, 224])
+#         if name == 'inception':
+#             xs = torch.zeros([4, 3, 299, 299])
+#         if name == 'classification':
+#             xs = torch.zeros([128, 3, 150, 150])
 #         g = NeuralNetworkGraph(model=model, test_batch=xs)
 #         embedding = g.get_naive_embedding()
+#         Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+#         importlib.reload(tmp_model)
+#         tmp_model.Tmp()(xs)
 #         for e in embedding:
 #             for i in range(len(e)):
 #                 if e[i] == None:
 #                     e[i] = -1
-#         archive.writestr(f'{cnt}.json', json.dumps(embedding))
-
+#         archive.writestr(f'generated--{name}.json', json.dumps(embedding))
+# os.remove('./tmp_model.py')
 
 
 # training_data = datasets.MNIST(

@@ -18,6 +18,7 @@ class EmbeddingDataset(Dataset):
                 self.data.append(embedding)
         if normalize:
             self.data = utils.normalize_dataset(self.data)
+        archive.close()
 
     def __len__(self):
         return len(self.data)
