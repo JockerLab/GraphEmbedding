@@ -24,9 +24,9 @@ torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 NODE_EMBEDDING_DIMENSION = 113
-teacher_forcing_ratio = 0.5
+teacher_forcing_ratio = 0.5  # 1
 SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
-EOS_token = torch.tensor([[[1.] * NODE_EMBEDDING_DIMENSION]])
+# EOS_token = torch.tensor([[[1.] * NODE_EMBEDDING_DIMENSION]])
 
 
 def train(loader, model, optimizer, criterion, clip):
@@ -40,13 +40,13 @@ def train(loader, model, optimizer, criterion, clip):
 
         optimizer.zero_grad()
 
-        source = torch.cat([SOS_token, source, EOS_token], 1)
-        target = torch.cat([SOS_token, target, EOS_token], 1)
+        source = torch.cat([SOS_token, source], 1)
+        target = torch.cat([SOS_token, target], 1)
 
-        output, hidden, cell = model(source, target)
+        output, hidden = model(source, target)
         # output: (embedding_dim, batch_size, node_dim)
 
-        final_embedding = torch.cat([hidden.view(-1), cell.view(-1)])
+        # final_embedding = hidden
 
         output = output[1:].view(-1, output.shape[2])
         target = target[:, 1:, :].view(-1, target.shape[2])
@@ -71,10 +71,10 @@ def evaluate(loader, model, criterion):
         # source: (batch_size, embedding_dim, node_dim)
         # target: (batch_size, embedding_dim, node_dim)
 
-        source = torch.cat([SOS_token, source, EOS_token], 1)
-        target = torch.cat([SOS_token, target, EOS_token], 1)
+        source = torch.cat([SOS_token, source], 1)
+        target = torch.cat([SOS_token, target], 1)
 
-        output, hidden, cell = model(source, target, 0)
+        output, hidden = model(source, target, 0)
         # output: (embedding_dim, batch_size, node_dim)
 
         output = output[1:].view(-1, output.shape[2])
@@ -96,7 +96,7 @@ def epoch_time(start_time, end_time):
 
 
 if __name__ == '__main__':
-    hidden_size = 256
+    hidden_size = 128
     num_layers = 1  # 2
     dropout = 0  # 0.5
     N_EPOCHS = 20
@@ -116,8 +116,9 @@ if __name__ == '__main__':
     decoder = DecoderRNN(NODE_EMBEDDING_DIMENSION, hidden_size, num_layers, dropout).to(device)
     model = Seq2Seq(encoder, decoder).to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-2)
-    criterion = nn.MSELoss(reduction='sum')
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    criterion = nn.MSELoss()  # reduction='sum'
+    # criterion = nn.CosineSimilarity(dim=1)
 
     test_input = []
     test_loss_last = 0
@@ -137,7 +138,7 @@ if __name__ == '__main__':
                     test_input[i][j] = 2 * (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j]) - 1
     test_len = len(test_input)
     test_input = torch.tensor(test_input).view(1, test_len, -1)
-    test_input = torch.cat([SOS_token, test_input, EOS_token], 1)
+    test_input = torch.cat([SOS_token, test_input], 1)
 
     for epoch in range(N_EPOCHS):
         start_time = time.time()
@@ -150,10 +151,9 @@ if __name__ == '__main__':
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
         test_embedding = model.encode(test_input)
-        test_output = model.decode(test_embedding, NODE_EMBEDDING_DIMENSION, SOS_token, EOS_token.view(1, -1), num_layers=num_layers, batch_size=1)
-        if test_output.size(dim=0) > test_len + 1:
-            print('Incorrect test output size!')
-        test_loss = criterion(test_input[:, 1:, :].view(test_len + 1, -1), test_output[:(test_len + 1), :])
+        test_embedding_len = int(test_embedding[0][0][0])
+        test_output = model.decode(test_embedding[:, :, 1:], NODE_EMBEDDING_DIMENSION, SOS_token, test_embedding_len, batch_size=1)
+        test_loss = criterion(test_input[0, 1:, :], test_output[1:, 0, :])
         test_loss_change = test_loss - test_loss_last
         test_loss_last = test_loss
 

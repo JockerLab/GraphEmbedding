@@ -20,42 +20,39 @@ class Seq2Seq(nn.Module):
         target_output_size = self.decoder.output_size
         outputs = torch.zeros(target_len, batch_size, target_output_size)
 
-        hidden, cell = self.encoder(source)
-        context_hidden, context_cell = hidden, cell
+        hidden = self.encoder(source)
+        context_hidden = hidden
 
         input = target[:, 0, :]  # SOS_token
         # input: (batch_size, node_dim)
 
         for i in range(1, target_len):
-            output, hidden, cell = self.decoder(input, hidden, cell)
+            output, hidden = self.decoder(input, hidden, context_hidden)
             # output: (1, output_size)
             # hidden: (num_layers, batch_size, hidden_size)
-            # cell: (num_layers, batch_size, hidden_size)
 
             outputs[i] = output
             input = target[:, i, :] if random.random() < teacher_forcing_ratio else output
 
-        return outputs, context_hidden, context_cell
+        return outputs, context_hidden
 
     def encode(self, source):
         # source: (batch_size, embedding_dim, node_dim)
-        hidden, cell = self.encoder(source)
-        return torch.cat([hidden.view(-1), cell.view(-1)])
+        hidden = torch.cat([torch.tensor(source.size(1)).view(1, 1, -1), self.encoder(source).view(1, 1, -1)], 2)
+        return hidden
 
-    def decode(self, embedding, node_embedding_size, SOS_token, EOS_token, num_layers=1, batch_size=1):
-        embedding_len = embedding.size(dim=0)
-        hidden = embedding[:(embedding_len // 2)].view(num_layers, 1, -1)
-        cell = embedding[(embedding_len // 2):].view(num_layers, 1, -1)
+    def decode(self, embedding, node_embedding_size, SOS_token, embedding_len, batch_size=1):
+        hidden = embedding
+        context = embedding
         input = SOS_token.view(1, -1)
-        outputs = torch.zeros(batch_size, node_embedding_size)
-        for i in range(MAX_NODE):
-            output, hidden, cell = self.decoder(input, hidden, cell)
+        outputs = torch.zeros(embedding_len, batch_size, node_embedding_size)
+        for i in range(embedding_len):
+            output, hidden = self.decoder(input, hidden, context)
             # output: (1, output_size)
             # hidden: (num_layers, batch_size, hidden_size)
-            # cell: (num_layers, batch_size, hidden_size)
 
-            outputs = torch.cat([outputs, output])
+            outputs[i] = output
             input = output
-            if torch.allclose(EOS_token, output, rtol=1e-2, atol=1e-3):
-                break
+
         return outputs
+
