@@ -21,7 +21,7 @@ def normalize_dataset(dataset):
             for i in range(len(dataset[emb])):
                 for pos, attr in reversed_attributes.items():
                     if 'len' not in attr:
-                        n = NODE_EMBEDDING_DIMENSION - pos
+                        break
                     else:
                         n = attr['len']
                     for j in range(n):
@@ -37,7 +37,7 @@ def normalize_dataset(dataset):
             f.write(json.dumps([min_vals, max_vals]))
     for emb in range(len(dataset)):
         for i in range(len(dataset[emb])):
-            for j in range(len(dataset[emb][i])):
+            for j in range(ATTRIBUTES_POS_COUNT):
                 if max_vals[j] == min_vals[j]:
                     dataset[emb][i][j] = max_vals[j]
                 else:

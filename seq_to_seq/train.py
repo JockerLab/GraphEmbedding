@@ -28,12 +28,12 @@ ATTRIBUTES_POS_COUNT = 50
 teacher_forcing_ratio = 0.5  # 1
 SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
 # EOS_token = torch.tensor([[[1.] * NODE_EMBEDDING_DIMENSION]])
-# cur_dfs = []
-#
-#
-# def get_dfs(v, data):
-#     cur_dfs.append(v)
-#     get_dfs(data[0][v][ATTRIBUTES_POS_COUNT], data)
+cur_dfs = []
+
+
+def get_dfs(v, data):
+    cur_dfs.append(v)
+    get_dfs(data[0][v][ATTRIBUTES_POS_COUNT], data)
 
 
 def train(loader, model, optimizer, criterion, clip):
@@ -41,9 +41,9 @@ def train(loader, model, optimizer, criterion, clip):
     epoch_loss = 0
     for i, data in enumerate(loader):
         # data: (batch_size, embedding_dim, node_dim)
-        # global cur_dfs
-        # cur_dfs = []
-        # get_dfs(0, data)
+        global cur_dfs
+        cur_dfs = []
+        get_dfs(0, data)
         source = target = data  # [:ATTRIBUTES_POS_COUNT]
         # source: (batch_size, embedding_dim, node_dim)
         # target: (batch_size, embedding_dim, node_dim)

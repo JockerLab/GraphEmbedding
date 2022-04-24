@@ -13,7 +13,7 @@ import json
 from functools import reduce
 
 ATTRIBUTES_POS_COUNT = 50
-NODE_EMBEDDING_DIMENSION = 113
+NODE_EMBEDDING_DIMENSION = 50
 NONE_REPLACEMENT = -1
 MAX_NODE = 10_000
 
@@ -93,8 +93,8 @@ reversed_attributes = {
     40: {'op': 'strides', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
     42: {'op': 'value', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
     46: {'op': 'perm', 'len': 4, 'type': 'int', 'range': [0, 4]},
-    50: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
-    51: {'type': 'int', 'range': [0, MAX_NODE]},
+    # 50: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
+    # 51: {'type': 'int', 'range': [0, MAX_NODE]},
 }
 
 # autoencoder = Autoencoder()
