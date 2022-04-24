@@ -9,7 +9,7 @@ class EncoderRNN(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.gru = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, embedding):
@@ -18,8 +18,9 @@ class EncoderRNN(nn.Module):
         embedding = self.dropout(embedding)
         # embedding: (batch_size, embedding_dim, node_dim)
 
-        output, hidden = self.gru(embedding)
+        output, (hidden, cell) = self.lstm(embedding)
         # output: (batch_size, embedding_dim, hidden_size)
         # hidden: (num_layers, batch_size, hidden_size)
+        # cell: (num_layers, batch_size, hidden_size)
 
-        return hidden
+        return hidden, cell

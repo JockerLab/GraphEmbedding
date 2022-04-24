@@ -12,7 +12,6 @@ import pandas
 import json
 from functools import reduce
 
-
 ATTRIBUTES_POS_COUNT = 50
 NODE_EMBEDDING_DIMENSION = 113
 NONE_REPLACEMENT = -1
@@ -115,16 +114,31 @@ class NeuralNetworkGraph(nx.DiGraph):
         self.embedding = []
         self.__parse_graph(hl_graph)
 
+    @staticmethod
+    def denormalize_vector(embedding):
+        with open(f'./data/embeddings/min_max.json', 'r') as f:
+            vals = json.load(f)
+        min_vals = vals[0]
+        max_vals = vals[1]
+        for i in range(len(embedding)):
+            for j in range(len(embedding[i])):
+                if max_vals[j] == min_vals[j]:
+                    embedding[i][j] = max_vals[j]
+                else:
+                    embedding[i][j] = ((max_vals[j] - min_vals[j]) / 2) * (embedding[i][j] + 1) + min_vals[j]
+        return embedding
+
+    # TODO: remove autoencoder
     @classmethod
-    def get_graph(cls, embedding, is_naive=False):
+    def get_graph(cls, embedding, autoencoder, is_naive=False):
         """Create graph from embedding and return it. Get embedding type of list"""
         graph = cls.__new__(cls)
         super(NeuralNetworkGraph, graph).__init__()
-        # TODO:
-        #  graph.embedding = embedding if is_naive else autoencoder.decode(
-        #     torch.tensor(NeuralNetworkGraph.replace_none_in_embedding(embedding, is_need_replace=False))).tolist()
-        graph.embedding = embedding
-        graph.embedding = cls.__fix_attributes(graph.embedding)
+        SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
+        decoded = embedding if is_naive else autoencoder.decode(embedding, NODE_EMBEDDING_DIMENSION, SOS_token).tolist()
+        denormalized = cls.denormalize_vector(decoded)
+        valid_naive = NeuralNetworkGraph.replace_none_in_embedding(denormalized, is_need_replace=False)
+        graph.embedding = cls.__fix_attributes(valid_naive)
         graph.__create_graph()
         return graph
 
@@ -163,12 +177,15 @@ class NeuralNetworkGraph(nx.DiGraph):
                     embedding[i][j] = None
         return embedding
 
-    def get_embedding(self):
+    def get_embedding(self, autoencoder):
         """Return embedding"""
-        # TODO:
-        #  __fix_attributes
-        #  return autoencoder.encode(
-        #     torch.tensor(NeuralNetworkGraph.replace_none_in_embedding(self.embedding.copy()))).tolist()
+        input = self.__fix_attributes(self.embedding)
+        input = self.replace_none_in_embedding(input)
+        input_len = len(input)
+        input = torch.tensor(input).view(1, input_len, -1)
+        SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
+        input = torch.cat([SOS_token, input], 1)
+        return autoencoder.encode(torch.tensor(input)).tolist()
 
     def __create_graph(self):
         """Create `networkx.DiGraph` graph from embedding"""

@@ -44,7 +44,3 @@ def normalize_dataset(dataset):
                     dataset[emb][i][j] = 2 * (dataset[emb][i][j] - min_vals[j]) / (max_vals[j] - min_vals[j]) - 1
     return dataset
 
-
-def denormalize_vector(x):
-    # TODO: [-1; 1] -> R
-    return x

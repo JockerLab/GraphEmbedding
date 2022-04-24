@@ -59,6 +59,47 @@ from timm.models.resnet import ResNet, BasicBlock, Bottleneck
 # 'GeneratedDensenet': GeneratedDensenet(),
 # 'classification': NaturalSceneClassification(),
 # }
+from seq_to_seq.decoder import DecoderRNN
+from seq_to_seq.encoder import EncoderRNN
+from seq_to_seq.seq2seq import Seq2Seq
+
+with open(f'./data/embeddings/test.json', 'r') as f:
+    test_input = json.load(f)
+vals = []
+min_vals = []
+max_vals = []
+if os.path.isfile('./data/embeddings/min_max.json'):
+    with open(f'./data/embeddings/min_max.json', 'r') as f:
+        vals = json.load(f)
+    min_vals = vals[0]
+    max_vals = vals[1]
+    for i in range(len(test_input)):
+        for j in range(len(test_input[i])):
+            if max_vals[j] == min_vals[j]:
+                test_input[i][j] = max_vals[j]
+            else:
+                test_input[i][j] = 2 * (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j]) - 1
+SOS_token = torch.tensor([[[-1.] * 113]])
+test_len = len(test_input)
+test_input = torch.tensor(test_input).view(1, test_len, -1)
+test_input = torch.cat([SOS_token, test_input], 1)
+encoder = EncoderRNN(113, 128, 1, 0)
+decoder = DecoderRNN(113, 128, 1, 0)
+model = Seq2Seq(encoder, decoder)
+model.load_state_dict(torch.load('seq_to_seq/seq2seq_best_mean_5.pt'))
+embd = model.encode(test_input)
+# Denormalization output
+kek = 0
+xs = torch.zeros([1, 3, 224, 224])
+g = NeuralNetworkGraph.get_graph(embd, model)
+# print(g.get_embedding(model))
+import tmp_model
+Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+importlib.reload(tmp_model)
+xs = torch.zeros([1, 3, 224, 224])
+tmp_model.Tmp()(xs)
+kek = 0
+
 
 
 # import tmp_model
@@ -131,41 +172,41 @@ from timm.models.resnet import ResNet, BasicBlock, Bottleneck
 
 
 
-pool_list = ['avgmax', 'max']
-blocks = [BasicBlock, Bottleneck]
-with open('./tmp_model.py', 'w') as f:
-    f.write('')
-import tmp_model
-cnt = 0
-
-for l_1 in [4, 8, 16, 32, 64]:
-    for l_2 in [4, 8, 16, 32, 64]:
-        for l_3 in [4, 8, 16, 32, 64]:
-            for l_4 in [4, 8, 16, 32, 64]:
-                for pool in pool_list:
-                    for block in blocks:
-                        if pool == 'avgmax' and isinstance(block, BasicBlock):
-                            continue
-                        try:
-                            model = ResNet(block, layers=[l_1, l_2, l_3, l_4], in_chans=3, global_pool=pool)
-                            xs = torch.zeros([1, 3, 224, 224])
-                            g = NeuralNetworkGraph(model=model, test_batch=xs)
-                            embedding = g.get_naive_embedding()
-                            Converter(g, filepath='./tmp_model.py', model_name='Tmp')
-                            importlib.reload(tmp_model)
-                            tmp_model.Tmp()(xs)
-                            cnt += 1
-                            if cnt == 3:
-                                cnt = 400
-                            with zipfile.ZipFile('./data/embeddings/embeddings-zip-gen-timm.zip', 'a') as archive:
-                                for e in embedding:
-                                    for i in range(len(e)):
-                                        if e[i] == None:
-                                            e[i] = -1
-                                archive.writestr(f'generated-timm--resnet_{cnt}.json', json.dumps(embedding))
-                        except Exception as e:
-                            pass
-os.remove('./tmp_model.py')
+# pool_list = ['avgmax', 'max']
+# blocks = [BasicBlock, Bottleneck]
+# with open('./tmp_model.py', 'w') as f:
+#     f.write('')
+# import tmp_model
+# cnt = 0
+#
+# for l_1 in [4, 8, 16, 32, 64]:
+#     for l_2 in [4, 8, 16, 32, 64]:
+#         for l_3 in [4, 8, 16, 32, 64]:
+#             for l_4 in [4, 8, 16, 32, 64]:
+#                 for pool in pool_list:
+#                     for block in blocks:
+#                         if pool == 'avgmax' and isinstance(block, BasicBlock):
+#                             continue
+#                         try:
+#                             model = ResNet(block, layers=[l_1, l_2, l_3, l_4], in_chans=3, global_pool=pool)
+#                             xs = torch.zeros([1, 3, 224, 224])
+#                             g = NeuralNetworkGraph(model=model, test_batch=xs)
+#                             embedding = g.get_naive_embedding()
+#                             Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+#                             importlib.reload(tmp_model)
+#                             tmp_model.Tmp()(xs)
+#                             cnt += 1
+#                             if cnt == 3:
+#                                 cnt = 400
+#                             with zipfile.ZipFile('./data/embeddings/embeddings-zip-gen-timm.zip', 'a') as archive:
+#                                 for e in embedding:
+#                                     for i in range(len(e)):
+#                                         if e[i] == None:
+#                                             e[i] = -1
+#                                 archive.writestr(f'generated-timm--resnet_{cnt}.json', json.dumps(embedding))
+#                         except Exception as e:
+#                             pass
+# os.remove('./tmp_model.py')
 
 
 
