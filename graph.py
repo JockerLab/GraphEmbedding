@@ -221,9 +221,12 @@ class NeuralNetworkGraph(nx.DiGraph):
             self.add_node(counter, **params)
 
             """Add edge to graph"""
-            for i in range(embedding[ATTRIBUTES_POS_COUNT]):
-                self.add_edge(counter, embedding[ATTRIBUTES_POS_COUNT + i + 1])
+            # for i in range(embedding[ATTRIBUTES_POS_COUNT]):
+            #     self.add_edge(counter, embedding[ATTRIBUTES_POS_COUNT + i + 1])
             counter += 1
+
+        for i in range(1, len(self.nodes)):
+            self.add_edge(i - 1, i)
 
     def __add_edges(self, graph):
         """Add edges with changed node's names"""
@@ -286,12 +289,13 @@ class NeuralNetworkGraph(nx.DiGraph):
                         embedding[cur_pos] = value
 
             edge_list = list(self.adj[id])
-            if len(edge_list) + ATTRIBUTES_POS_COUNT + 1 <= NODE_EMBEDDING_DIMENSION:
-                embedding[ATTRIBUTES_POS_COUNT] = len(edge_list)
-                for i in range(0, len(edge_list)):
-                    embedding[ATTRIBUTES_POS_COUNT + i + 1] = edge_list[i]
-            else:
-                print('This graph is not supported!')
+            embedding.extend(edge_list)
+            # if len(edge_list) + ATTRIBUTES_POS_COUNT + 1 <= NODE_EMBEDDING_DIMENSION:
+            #     embedding[ATTRIBUTES_POS_COUNT] = len(edge_list)
+            #     for i in range(0, len(edge_list)):
+            #         embedding[ATTRIBUTES_POS_COUNT + i + 1] = edge_list[i]
+            # else:
+            #     print('This graph is not supported!')
             self.embedding.append(embedding)
 
     def __parse_graph(self, graph):

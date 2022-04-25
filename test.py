@@ -68,25 +68,26 @@ with open(f'./data/embeddings/test.json', 'r') as f:
 vals = []
 min_vals = []
 max_vals = []
+NODE_EMBEDDING_DIM = 50
 if os.path.isfile('./data/embeddings/min_max.json'):
     with open(f'./data/embeddings/min_max.json', 'r') as f:
         vals = json.load(f)
     min_vals = vals[0]
     max_vals = vals[1]
     for i in range(len(test_input)):
-        for j in range(len(test_input[i])):
+        for j in range(NODE_EMBEDDING_DIM):
             if max_vals[j] == min_vals[j]:
                 test_input[i][j] = max_vals[j]
             else:
                 test_input[i][j] = 2 * (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j]) - 1
-SOS_token = torch.tensor([[[-1.] * 113]])
+SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIM]])
 test_len = len(test_input)
-test_input = torch.tensor(test_input).view(1, test_len, -1)
+test_input = torch.tensor(test_input)[:, :NODE_EMBEDDING_DIM].view(1, test_len, -1)
 test_input = torch.cat([SOS_token, test_input], 1)
-encoder = EncoderRNN(113, 128, 1, 0)
-decoder = DecoderRNN(113, 128, 1, 0)
+encoder = EncoderRNN(NODE_EMBEDDING_DIM, 8192, 1, 0)
+decoder = DecoderRNN(NODE_EMBEDDING_DIM, 8192, 1, 0)
 model = Seq2Seq(encoder, decoder)
-model.load_state_dict(torch.load('seq_to_seq/seq2seq_best_mean_5.pt'))
+model.load_state_dict(torch.load('seq_to_seq/seq2seq_best_sum_1.pt'))
 embd = model.encode(test_input)
 # Denormalization output
 kek = 0

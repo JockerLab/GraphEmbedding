@@ -23,7 +23,7 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
-NODE_EMBEDDING_DIMENSION = 113
+NODE_EMBEDDING_DIMENSION = 50
 ATTRIBUTES_POS_COUNT = 50
 teacher_forcing_ratio = 0.5  # 1
 SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
@@ -32,8 +32,11 @@ cur_dfs = []
 
 
 def get_dfs(v, data):
+    if v < 0:
+        return
     cur_dfs.append(v)
-    get_dfs(data[0][v][ATTRIBUTES_POS_COUNT], data)
+    if v < int(data.size(1)):
+        get_dfs(int(data[0][v][ATTRIBUTES_POS_COUNT + 1]), data)
 
 
 def train(loader, model, optimizer, criterion, clip):
@@ -44,7 +47,12 @@ def train(loader, model, optimizer, criterion, clip):
         global cur_dfs
         cur_dfs = []
         get_dfs(0, data)
-        source = target = data  # [:ATTRIBUTES_POS_COUNT]
+        new_data = torch.zeros([1, len(cur_dfs), NODE_EMBEDDING_DIMENSION])
+        j = 0
+        for dfs in cur_dfs:
+            new_data[0][j] = data[0][dfs][:NODE_EMBEDDING_DIMENSION]
+            j += 1
+        source = target = new_data
         # source: (batch_size, embedding_dim, node_dim)
         # target: (batch_size, embedding_dim, node_dim)
 
@@ -78,7 +86,15 @@ def evaluate(loader, model, criterion):
     with torch.no_grad():
         for i, data in enumerate(loader):
             # data: (batch_size, embedding_dim, node_dim)
-            source = target = data
+            global cur_dfs
+            cur_dfs = []
+            get_dfs(0, data)
+            new_data = torch.zeros([1, len(cur_dfs), NODE_EMBEDDING_DIMENSION])
+            j = 0
+            for dfs in cur_dfs:
+                new_data[0][j] = data[0][dfs][:NODE_EMBEDDING_DIMENSION]
+                j += 1
+            source = target = new_data
             # source: (batch_size, embedding_dim, node_dim)
             # target: (batch_size, embedding_dim, node_dim)
 
@@ -108,14 +124,14 @@ def epoch_time(start_time, end_time):
 
 if __name__ == '__main__':
     num_layers = 1  # 2
-    N_EPOCHS = 10
+    N_EPOCHS = 20
     best_valid_loss_total_mean = float('inf')
     best_valid_loss_total_sum = float('inf')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dataset = EmbeddingDataset(
         root='../data/embeddings/',
         transform=torch.tensor,
-        normalize=True
+        normalize=False
     )
     loader = DataLoader(dataset=dataset,
                         batch_size=1,
@@ -139,13 +155,13 @@ if __name__ == '__main__':
                     test_input[i][j] = 2 * (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j]) - 1
     test_len = len(test_input)
     test_input = torch.tensor(test_input).view(1, test_len, -1)
-    test_input = torch.cat([SOS_token, test_input], 1)
+    test_input = torch.cat([SOS_token, test_input[:, :, :NODE_EMBEDDING_DIMENSION]], 1)
 
-    dropouts = [0, 0.5]
-    hidden_sizes = [128, 256]  # [128, 256, 512, 1024]
+    dropouts = [0]
+    hidden_sizes = [8192]  # [128, 256, 512, 1024]
     optimizers = [optim.Adamax]  # [optim.Adam, optim.AdamW, optim.Adamax]
     learning_rates = [1e-3]  # [1e-2, 1e-3]
-    reductions = ['mean', 'sum']  # ['mean', 'sum']
+    reductions = ['sum']  # ['mean', 'sum']
     iter_num = 0
 
     for hidden_size in hidden_sizes:
