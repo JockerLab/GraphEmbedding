@@ -13,9 +13,9 @@ import json
 from functools import reduce
 
 ATTRIBUTES_POS_COUNT = 50
-NODE_EMBEDDING_DIMENSION = 50
+NODE_EMBEDDING_DIMENSION = 113
 NONE_REPLACEMENT = -1
-MAX_NODE = 10_000
+MAX_NODE = 1_000  # for 200 layers in network
 
 node_to_ops = {
     "Conv": 0,
@@ -93,12 +93,12 @@ reversed_attributes = {
     40: {'op': 'strides', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
     42: {'op': 'value', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
     46: {'op': 'perm', 'len': 4, 'type': 'int', 'range': [0, 4]},
-    # 50: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
-    # 51: {'type': 'int', 'range': [0, MAX_NODE]},
+    50: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
+    51: {'type': 'int', 'range': [0, MAX_NODE]},
 }
 
-# autoencoder = Autoencoder()
-# autoencoder.load_state_dict(torch.load("models/autoencoder.pth"))
+# autoencoder_model = Autoencoder()
+# autoencoder_model.load_state_dict(torch.load("models/autoencoder_model.pth"))
 
 
 class NeuralNetworkGraph(nx.DiGraph):
@@ -128,15 +128,15 @@ class NeuralNetworkGraph(nx.DiGraph):
                     embedding[i][j] = ((max_vals[j] - min_vals[j]) / 2) * (embedding[i][j] + 1) + min_vals[j]
         return embedding
 
-    # TODO: remove autoencoder
+    # TODO: remove autoencoder_model
     @classmethod
-    def get_graph(cls, embedding, autoencoder, is_naive=False):
+    def get_graph(cls, embedding, autoencoder, is_naive=False, is_normalize_needed=False):
         """Create graph from embedding and return it. Get embedding type of list"""
         graph = cls.__new__(cls)
         super(NeuralNetworkGraph, graph).__init__()
         SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
         decoded = embedding if is_naive else autoencoder.decode(embedding, NODE_EMBEDDING_DIMENSION, SOS_token).tolist()
-        denormalized = cls.denormalize_vector(decoded)
+        denormalized = decoded if not is_normalize_needed else cls.denormalize_vector(decoded)
         valid_naive = NeuralNetworkGraph.replace_none_in_embedding(denormalized, is_need_replace=False)
         graph.embedding = cls.__fix_attributes(valid_naive)
         graph.__create_graph()
@@ -289,13 +289,13 @@ class NeuralNetworkGraph(nx.DiGraph):
                         embedding[cur_pos] = value
 
             edge_list = list(self.adj[id])
-            embedding.extend(edge_list)
-            # if len(edge_list) + ATTRIBUTES_POS_COUNT + 1 <= NODE_EMBEDDING_DIMENSION:
-            #     embedding[ATTRIBUTES_POS_COUNT] = len(edge_list)
-            #     for i in range(0, len(edge_list)):
-            #         embedding[ATTRIBUTES_POS_COUNT + i + 1] = edge_list[i]
-            # else:
-            #     print('This graph is not supported!')
+            # embedding.extend(edge_list)
+            if len(edge_list) + ATTRIBUTES_POS_COUNT + 1 <= NODE_EMBEDDING_DIMENSION:
+                embedding[ATTRIBUTES_POS_COUNT] = len(edge_list)
+                for i in range(0, len(edge_list)):
+                    embedding[ATTRIBUTES_POS_COUNT + i + 1] = edge_list[i]
+            else:
+                print('This graph is not supported!')
             self.embedding.append(embedding)
 
     def __parse_graph(self, graph):

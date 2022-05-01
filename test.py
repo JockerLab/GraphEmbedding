@@ -59,9 +59,7 @@ from timm.models.resnet import ResNet, BasicBlock, Bottleneck
 # 'GeneratedDensenet': GeneratedDensenet(),
 # 'classification': NaturalSceneClassification(),
 # }
-from seq_to_seq.decoder import DecoderRNN
-from seq_to_seq.encoder import EncoderRNN
-from seq_to_seq.seq2seq import Seq2Seq
+
 
 with open(f'./data/embeddings/test.json', 'r') as f:
     test_input = json.load(f)
@@ -81,13 +79,14 @@ if os.path.isfile('./data/embeddings/min_max.json'):
             else:
                 test_input[i][j] = 2 * (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j]) - 1
 SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIM]])
+EOS_token = torch.tensor([[[1.] * NODE_EMBEDDING_DIM]])
 test_len = len(test_input)
 test_input = torch.tensor(test_input)[:, :NODE_EMBEDDING_DIM].view(1, test_len, -1)
-test_input = torch.cat([SOS_token, test_input], 1)
+test_input = torch.cat([SOS_token, test_input, EOS_token], 1)
 encoder = EncoderRNN(NODE_EMBEDDING_DIM, 8192, 1, 0)
 decoder = DecoderRNN(NODE_EMBEDDING_DIM, 8192, 1, 0)
 model = Seq2Seq(encoder, decoder)
-model.load_state_dict(torch.load('seq_to_seq/seq2seq_best_sum_1.pt'))
+model.load_state_dict(torch.load('autoencoder_model/seq2seq_best_sum_1.pt'))
 embd = model.encode(test_input)
 # Denormalization output
 kek = 0
