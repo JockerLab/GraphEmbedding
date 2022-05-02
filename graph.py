@@ -15,7 +15,7 @@ from functools import reduce
 ATTRIBUTES_POS_COUNT = 50
 NODE_EMBEDDING_DIMENSION = 113
 NONE_REPLACEMENT = -1
-MAX_NODE = 1_500  # for 200 layers in network
+MAX_NODE = 3_000  # for 200 layers in network
 
 node_to_ops = {
     "Conv": 0,

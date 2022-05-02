@@ -20,7 +20,7 @@ torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 NODE_EMBEDDING_DIMENSION = 113
 ATTRIBUTES_POS_COUNT = 50
-MAX_NODE = 1_500
+MAX_NODE = 3_000
 teacher_forcing_ratio = 0.5  # 1
 SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
 EOS_token = torch.tensor([[[1.] * NODE_EMBEDDING_DIMENSION]])

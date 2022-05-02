@@ -25,7 +25,7 @@ torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 NODE_EMBEDDING_DIMENSION = 113
 ATTRIBUTES_POS_COUNT = 50
-MAX_N = 1500
+MAX_N = 3000
 teacher_forcing_ratio = 0.5  # 1
 SOS_token = torch.tensor([0])
 # EOS_token = torch.tensor([[[1.] * (NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT)]])
@@ -106,7 +106,7 @@ def epoch_time(start_time, end_time):
 
 if __name__ == '__main__':
     num_layers = 1  # 2
-    N_EPOCHS = 20
+    N_EPOCHS = 5
     best_valid_loss_total_mean = float('inf')
     best_valid_loss_total_sum = float('inf')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     # test_input = torch.cat([SOS_token, test_input[0, 0, (ATTRIBUTES_POS_COUNT + 1):]], 1)
 
     dropouts = [0]
-    hidden_sizes = [10]  # [128, 256, 512, 1024]
+    hidden_sizes = [20]  # [128, 256, 512, 1024]
     optimizers = [optim.Adamax]  # [optim.Adam, optim.AdamW, optim.Adamax]
     learning_rates = [1e-3]  # [1e-2, 1e-3]
     reductions = ['sum']  # ['mean', 'sum']
@@ -161,7 +161,7 @@ if __name__ == '__main__':
                         decoder = DecoderRNN(NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT - 1, hidden_size, num_layers, dropout, MAX_N).to(device)
                         model = Seq2Seq(encoder, decoder).to(device)
                         optimizer = optim_func(model.parameters(), lr=lr)
-                        criterion = nn.CrossEntropyLoss()
+                        criterion = nn.CrossEntropyLoss()  # NLLLoss
 
                         best_valid_loss = float('inf')
                         train_loss = 0
