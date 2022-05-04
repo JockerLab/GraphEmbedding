@@ -182,11 +182,11 @@ class Converter:
                     cur_node = self._graph_seq.nodes[v]["node"]
                     tensor_slice = [':', ':', ':', ':'][:len(cur_node["output_shape"])]
                     for i in range(len(cur_node["axes"])):
-                        start = str(cur_node["starts"][i]) if cur_node["starts"][i] < sys.maxsize / 2 else ''
-                        end = str(cur_node["ends"][i]) if cur_node["ends"][i] < sys.maxsize / 2 else ''
+                        start = str(cur_node["starts"][i]) if cur_node["starts"].get(i) is not None and cur_node["starts"].get(i) > 0 else ''
+                        end = str(cur_node["ends"][i]) if cur_node["ends"].get(i) is not None and cur_node["ends"].get(i) > 0 else ''
                         tensor_slice[cur_node["axes"][i]] = start + ':' + end
                         if len(cur_node.get("steps", [])) > 0:
-                            step = str(cur_node["steps"][i]) if cur_node["steps"][i] < sys.maxsize / 2 else ''
+                            step = str(cur_node["steps"][i]) if cur_node["steps"].get(i) is not None and cur_node["steps"].get(i) > 0 else ''
                             tensor_slice[cur_node["axes"][i]] += ':' + step
                     Converter.__write_line(file,
                                            f'x_{v} = x_{prev_seq}[{", ".join(tensor_slice)}]',

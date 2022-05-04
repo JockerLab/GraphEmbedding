@@ -2,12 +2,12 @@ import random
 
 import torch
 from torch import nn
-from graph import MAX_NODE
+from graph import MAX_NODE, ATTRIBUTES_POS_COUNT
 
 
-class Seq2Seq(nn.Module):
+class Seq2SeqEdges(nn.Module):
     def __init__(self, encoder, decoder):
-        super(Seq2Seq, self).__init__()
+        super(Seq2SeqEdges, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
 
@@ -33,22 +33,24 @@ class Seq2Seq(nn.Module):
 
         return outputs
 
-    #TODO:  data_len, concat
     def encode(self, source, data_len):
         # source: (batch_size, embedding_dim, node_dim)
-        return data_len, self.encoder(source[:(data_len + 1)])
+        SOS_token = torch.tensor([0])
+        source = torch.tensor(source[(ATTRIBUTES_POS_COUNT + 1):])
+        source = torch.cat([SOS_token, source])
+        return self.encoder(source[:(data_len + 1)])
 
-    def decode(self, embedding, node_embedding_size, SOS_token, data_len, batch_size=1):
+    def decode(self, embedding, data_len, batch_size=1):
+        SOS_token = torch.tensor([0])
         hidden = embedding
         input = SOS_token[0]
-        target_output_size = self.decoder.output_size
-        outputs = torch.zeros(data_len + 1, target_output_size)
+        outputs = torch.zeros(data_len + 1, 1)
         for i in range(1, data_len + 1):
             output, hidden = self.decoder(input, hidden)
             # output: (1, output_size)
             # hidden: (num_layers, batch_size, hidden_size)
 
-            outputs[i] = output
+            outputs[i] = output.argmax(1)[0]
             input = output.argmax(1)[0]
 
-        return outputs
+        return outputs[1:, :].view(-1)

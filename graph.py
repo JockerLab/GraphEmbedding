@@ -18,29 +18,29 @@ NONE_REPLACEMENT = -1
 MAX_NODE = 3_000  # for 200 layers in network
 
 node_to_ops = {
-    "Conv": 0,
-    "LeakyRelu": 1,
-    "MaxPool": 2,
-    "Flatten": 3,
-    "Linear": 4,
-    "Sigmoid": 5,
-    "BatchNorm": 6,
-    "Relu": 7,
-    "Add": 8,
-    "GlobalAveragePool": 9,
-    "AveragePool": 10,
-    "Concat": 11,
-    "Pad": 12,
-    "ReduceMean": 13,
-    "Tanh": 14,
-    "ConvTranspose": 15,
-    "Slice": 16,
-    "Elu": 17,
-    "Constant": 18,
-    "Reshape": 19,
-    "Mul": 20,
-    "Transpose": 21,
-    "LogSoftmax": 22,
+    "Conv": {'id': 0, 'attributes': ['output_shape', 'dilations', 'group', 'kernel_shape', 'pads', 'strides']},
+    "LeakyRelu": {'id': 1, 'attributes': ['output_shape']},
+    "MaxPool": {'id': 2, 'attributes': ['output_shape', 'dilations', 'kernel_shape', 'pads', 'strides']},
+    "Flatten": {'id': 3, 'attributes': ['output_shape']},
+    "Linear": {'id': 4, 'attributes': ['output_shape']},
+    "Sigmoid": {'id': 5, 'attributes': ['output_shape']},
+    "BatchNorm": {'id': 6, 'attributes': ['output_shape', 'epsilon', 'momentum']},
+    "Relu": {'id': 7, 'attributes': ['output_shape']},
+    "Add": {'id': 8, 'attributes': ['output_shape']},
+    "GlobalAveragePool": {'id': 9, 'attributes': ['output_shape']},
+    "AveragePool": {'id': 10, 'attributes': ['output_shape', 'kernel_shape', 'strides', 'pads']},
+    "Concat": {'id': 11, 'attributes': ['output_shape']},
+    "Pad": {'id': 12, 'attributes': ['output_shape', 'pads']},
+    "ReduceMean": {'id': 13, 'attributes': ['output_shape', 'axes', 'keepdims']},
+    "Tanh": {'id': 14, 'attributes': ['output_shape']},
+    "ConvTranspose": {'id': 15, 'attributes': ['output_shape', 'dilations', 'group', 'kernel_shape', 'strides', 'pads']},
+    "Slice": {'id': 16, 'attributes': ['output_shape', 'axes', 'starts', 'ends', 'steps']},
+    "Elu": {'id': 17, 'attributes': ['output_shape']},
+    "Constant": {'id': 18, 'attributes': ['output_shape', 'value']},
+    "Reshape": {'id': 19, 'attributes': ['output_shape']},
+    "Mul": {'id': 20, 'attributes': ['output_shape']},
+    "Transpose": {'id': 21, 'attributes': ['output_shape', 'perm']},
+    "LogSoftmax": {'id': 22, 'attributes': ['output_shape']},
 }
 
 pads_to_mods = {
@@ -50,51 +50,55 @@ pads_to_mods = {
     "circular": 3,
 }
 
-attribute_to_pos = {
-    "alpha": 0,
-    "axes": [1, 2, 3, 4],
-    "axis": 5,
-    "dilations": [6, 7],
-    "ends": [8, 9, 10, 11],
-    "epsilon": 12,
-    "group": 13,
-    "keepdims": 14,
-    "kernel_shape": [15, 16],
-    "mode": 17,
-    "momentum": 18,
-    "op": 19,
-    "output_shape": [20, 21, 22, 23],
-    "pads": [24, 25, 26, 27, 28, 29, 30, 31],
-    "starts": [32, 33, 34, 35],
-    "steps": [36, 37, 38, 39],
-    "strides": [40, 41],
-    "value": [42, 43, 44, 45],
-    "perm": [46, 47, 48, 49]
+attribute_parameters = {
+    "alpha": {'len': 1, 'pos': 0, 'type': 'float', 'range': [0.0, float('inf')], 'default': 1.0},
+    "axes": {'len': 4, 'pos': [1, 2, 3, 4], 'type': 'int', 'range': [0, float('inf')], 'default': [-1, -1, -1, -1]},
+    "axis": {'len': 1, 'pos': 5, 'type': 'int', 'range': [0, float('inf')], 'default': 0},
+    "dilations": {'len': 2, 'pos': [6, 7], 'type': 'int', 'range': [0, float('inf')], 'default': [1, 1]},
+    "ends": {'len': 4, 'pos': [8, 9, 10, 11], 'type': 'int', 'range': [0, float('inf')], 'default': [-1, -1, -1, -1]},
+    "epsilon": {'len': 1, 'pos': 12, 'type': 'float', 'range': [0.0, float('inf')], 'default': 1e-5},
+    "group": {'len': 1, 'pos': 13, 'type': 'int', 'range': [0, float('inf')], 'default': 1},
+    "keepdims": {'len': 1, 'pos': 14, 'type': 'int', 'range': [0, float('inf')], 'default': 1},
+    "kernel_shape": {'len': 2, 'pos': [15, 16], 'type': 'int', 'range': [0, float('inf')], 'default': [1, 1]},
+    "mode": {'len': 1, 'pos': 17, 'type': 'int', 'range': [0, len(pads_to_mods)], 'default': 0},
+    "momentum": {'len': 1, 'pos': 18, 'type': 'float', 'range': [0.0, float('inf')], 'default': 0.9},
+    "op": {'len': 1, 'pos': 19, 'type': 'int', 'range': [0, len(node_to_ops)], 'default': 0},
+    "output_shape": {'len': 4, 'pos': [20, 21, 22, 23], 'type': 'int', 'range': [0, float('inf')], 'default': [-1, -1, -1, -1]},
+    "pads": {'len': 8, 'pos': [24, 25, 26, 27, 28, 29, 30, 31], 'type': 'int', 'range': [0, float('inf')], 'default': [0, 0, 0, 0, 0, 0, 0, 0]},
+    "starts": {'len': 4, 'pos': [32, 33, 34, 35], 'type': 'int', 'range': [0, float('inf')], 'default': [-1, -1, -1, -1]},
+    "steps": {'len': 4, 'pos': [36, 37, 38, 39], 'type': 'int', 'range': [0, float('inf')], 'default': [-1, -1, -1, -1]},
+    "strides": {'len': 2, 'pos': [40, 41], 'type': 'int', 'range': [0, float('inf')], 'default': [1, 1]},
+    "value": {'len': 4, 'pos': [42, 43, 44, 45], 'type': 'int', 'range': [0, float('inf')], 'default': [0, 0, 0, 0]},
+    "perm": {'len': 4, 'pos': [46, 47, 48, 49], 'type': 'int', 'range': [0, 4], 'default': [0, 1, 2, 3]},
+    "edge_list_len": {'len': 1, 'pos': 50, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT - 1], 'default': 1},
+    "edge_list": {'type': 'int', 'range': [0, MAX_NODE]},
     # "skip_connections": [50, ...]
 }
 
+# TODO: sys.maxsize --> None / -1
+
 reversed_attributes = {
-    0: {'op': 'alpha', 'len': 1, 'type': 'float', 'range': [0.0, float('inf')]},
-    1: {'op': 'axes', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
-    5: {'op': 'axis', 'len': 1, 'type': 'int', 'range': [0, float('inf')]},
-    6: {'op': 'dilations', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
-    8: {'op': 'ends', 'len': 4, 'type': 'int', 'range': [0, sys.maxsize]},
-    12: {'op': 'epsilon', 'len': 1, 'type': 'float', 'range': [0.0, float('inf')]},
-    13: {'op': 'group', 'len': 1, 'type': 'int', 'range': [0, float('inf')]},
-    14: {'op': 'keepdims', 'len': 1, 'type': 'int', 'range': [0, float('inf')]},
-    15: {'op': 'kernel_shape', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
-    17: {'op': 'mode', 'len': 1, 'type': 'int', 'range': [0, len(pads_to_mods)]},
-    18: {'op': 'momentum', 'len': 1, 'type': 'float', 'range': [0.0, float('inf')]},
-    19: {'op': 'op', 'len': 1, 'type': 'int', 'range': [0, len(node_to_ops)]},
-    20: {'op': 'output_shape', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
-    24: {'op': 'pads', 'len': 8, 'type': 'int', 'range': [0, float('inf')]},
-    32: {'op': 'starts', 'len': 4, 'type': 'int', 'range': [0, sys.maxsize]},
-    36: {'op': 'steps', 'len': 4, 'type': 'int', 'range': [0, sys.maxsize]},
-    40: {'op': 'strides', 'len': 2, 'type': 'int', 'range': [0, float('inf')]},
-    42: {'op': 'value', 'len': 4, 'type': 'int', 'range': [0, float('inf')]},
-    46: {'op': 'perm', 'len': 4, 'type': 'int', 'range': [0, 4]},
-    50: {'len': 1, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT]},
-    51: {'type': 'int', 'range': [0, MAX_NODE]},
+    0: 'alpha',
+    1: 'axes',
+    5: 'axis',
+    6: 'dilations',
+    8: 'ends',
+    12: 'epsilon',
+    13: 'group',
+    14: 'keepdims',
+    15: 'kernel_shape',
+    17: 'mode',
+    18: 'momentum',
+    19: 'op',
+    20: 'output_shape',
+    24: 'pads',
+    32: 'starts',
+    36: 'steps',
+    40: 'strides',
+    42: 'value',
+    46: 'perm',
+    50: 'edge_list_len',
+    51: 'edge_list'
 }
 
 # autoencoder_model = Autoencoder()
@@ -122,20 +126,55 @@ class NeuralNetworkGraph(nx.DiGraph):
         max_vals = vals[1]
         for i in range(len(embedding)):
             for j in range(len(embedding[i])):
+                if j == ATTRIBUTES_POS_COUNT or attribute_parameters['op']['pos']:
+                    continue
                 if max_vals[j] == min_vals[j]:
                     embedding[i][j] = max_vals[j]
+                elif embedding[i][j] == -1.:
+                    continue
                 else:
                     embedding[i][j] = ((max_vals[j] - min_vals[j]) / 2) * (embedding[i][j] + 1) + min_vals[j]
         return embedding
 
-    # TODO: remove autoencoder_model
+    @staticmethod
+    def normalize_vector(embedding):
+        with open(f'./data/embeddings/min_max.json', 'r') as f:
+            vals = json.load(f)
+        min_vals = vals[0]
+        max_vals = vals[1]
+        for i in range(len(embedding)):
+            if i == ATTRIBUTES_POS_COUNT:
+                continue
+            if max_vals[i] == min_vals[i]:
+                embedding[i] = float(max_vals[i])
+            elif embedding[i] == -1:
+                embedding[i] = -1.
+            else:
+                embedding[i] = (embedding[i] - min_vals[i]) / (max_vals[i] - min_vals[i])
+        return torch.tensor(embedding)
+
     @classmethod
-    def get_graph(cls, embedding, autoencoder, is_naive=False, is_normalize_needed=False):
+    def get_graph(cls, embedding, model_attributes, model_edges, hidden_size=40, is_naive=False, is_normalize_needed=True):
         """Create graph from embedding and return it. Get embedding type of list"""
         graph = cls.__new__(cls)
         super(NeuralNetworkGraph, graph).__init__()
-        SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
-        decoded = embedding if is_naive else autoencoder.decode(embedding, NODE_EMBEDDING_DIMENSION, SOS_token).tolist()
+
+        if is_naive:
+            decoded = embedding
+        else:
+            decoded = []
+            for row in embedding:
+                attribute_len = row[0]
+                edge_len = row[hidden_size + 2]
+                attribute_embedding = torch.tensor(row[1:(hidden_size + 2)])
+                edge_embedding = torch.tensor(row[(hidden_size + 3):])
+                attribute_output = model_attributes.decode(attribute_embedding, attribute_len)
+                edge_output = model_edges.decode(edge_embedding.view(1, 1, -1), edge_len)
+                result_vector = [*attribute_output.tolist(), edge_len, *edge_output.view(-1).tolist()]
+                for i in range(NODE_EMBEDDING_DIMENSION - len(result_vector)):
+                    result_vector.append(-1)
+                decoded.append(result_vector)
+
         denormalized = decoded if not is_normalize_needed else cls.denormalize_vector(decoded)
         valid_naive = NeuralNetworkGraph.replace_none_in_embedding(denormalized, is_need_replace=False)
         graph.embedding = cls.__fix_attributes(valid_naive)
@@ -145,7 +184,8 @@ class NeuralNetworkGraph(nx.DiGraph):
     @staticmethod
     def __fix_attributes(embedding):
         for e in range(len(embedding)):
-            for pos, attr in reversed_attributes.items():
+            for pos, name in reversed_attributes.items():
+                attr = attribute_parameters[name]
                 if 'len' not in attr:
                     n = NODE_EMBEDDING_DIMENSION - pos
                 else:
@@ -177,15 +217,18 @@ class NeuralNetworkGraph(nx.DiGraph):
                     embedding[i][j] = None
         return embedding
 
-    def get_embedding(self, autoencoder):
+    def get_embedding(self, model_attributes, model_edges):
         """Return embedding"""
         input = self.__fix_attributes(self.embedding)
         input = self.replace_none_in_embedding(input)
-        input_len = len(input)
-        input = torch.tensor(input).view(1, input_len, -1)
-        SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIMENSION]])
-        input = torch.cat([SOS_token, input], 1)
-        return autoencoder.encode(torch.tensor(input)).tolist()
+        result = []
+        for row in input:
+            edge_len = int(row[ATTRIBUTES_POS_COUNT])
+            edge_embedding = model_edges.encode(row, edge_len)
+            row = self.normalize_vector(row)
+            attribute_len, attribute_emmbedding = model_attributes.encode(row[:(ATTRIBUTES_POS_COUNT + 1)])
+            result.append([attribute_len, *attribute_emmbedding.tolist(), edge_len, *edge_embedding[0][0].tolist()])
+        return result
 
     def __create_graph(self):
         """Create `networkx.DiGraph` graph from embedding"""
@@ -193,40 +236,34 @@ class NeuralNetworkGraph(nx.DiGraph):
         for embedding in self.embedding:
             """Add node with attributes to graph"""
             params = {}
-            for pos, attr_info in reversed_attributes.items():
-                if 'op' not in attr_info:
-                    continue
-                is_set = True
-                if attr_info['len'] > 1:
-                    attr = []
-                    for i in range(attr_info['len']):
-                        if embedding[pos + i] is not None:
-                            attr.append(embedding[pos + i])
-                        else:
-                            break
-                    if len(attr) == 0:
-                        is_set = False
+            operation_id = embedding[attribute_parameters['op']['pos']]
+            op_name = str(list(filter(lambda x: node_to_ops[x]['id'] == operation_id, node_to_ops))[0])
+            operation = node_to_ops[op_name]
+            params['op'] = op_name
+            for attribute in operation['attributes']:
+                if attribute_parameters[attribute]['len'] == 1:
+                    ids = [attribute_parameters[attribute]['pos']]
+                    defaults = [attribute_parameters[attribute]['default']]
                 else:
-                    if embedding[pos] is None:
-                        is_set = False
-                    else:
-                        if pos == attribute_to_pos['op']:
-                            attr = str(list(filter(lambda x: node_to_ops[x] == embedding[pos], node_to_ops))[0])
-                        elif pos == attribute_to_pos['mode']:
-                            attr = str(list(filter(lambda x: pads_to_mods[x] == embedding[pos], pads_to_mods))[0])
-                        else:
-                            attr = embedding[pos]
-                if is_set:
-                    params[attr_info['op']] = attr
+                    ids = attribute_parameters[attribute]['pos']
+                    defaults = attribute_parameters[attribute]['default']
+                new_params = []
+                for i in range(len(ids)):
+                    to_append = embedding[ids[i]]
+                    if embedding[ids[i]] is None:
+                        to_append = defaults[i]
+                    if attribute == 'op':
+                        to_append = str(list(filter(lambda x: node_to_ops[x]['id'] == embedding[ids[i]], node_to_ops))[0])
+                    elif attribute == 'mode':
+                        to_append = str(list(filter(lambda x: pads_to_mods[x] == embedding[ids[i]], pads_to_mods))[0])
+                    new_params.append(to_append)
+                params[attribute] = new_params[0] if attribute_parameters[attribute]['len'] == 1 else new_params
             self.add_node(counter, **params)
 
             """Add edge to graph"""
-            # for i in range(embedding[ATTRIBUTES_POS_COUNT]):
-            #     self.add_edge(counter, embedding[ATTRIBUTES_POS_COUNT + i + 1])
+            for i in range(embedding[ATTRIBUTES_POS_COUNT]):
+                self.add_edge(counter, embedding[ATTRIBUTES_POS_COUNT + i + 1])
             counter += 1
-
-        for i in range(1, len(self.nodes)):
-            self.add_edge(i - 1, i)
 
     def __add_edges(self, graph):
         """Add edges with changed node's names"""
@@ -275,18 +312,21 @@ class NeuralNetworkGraph(nx.DiGraph):
             for param in node:
                 op_name = param
                 if isinstance(node[param], list):
-                    current_poses = attribute_to_pos[op_name]
+                    current_poses = attribute_parameters[op_name]['pos']
                     for i in range(len(node[param])):
                         embedding[current_poses[i]] = node[param][i]
                 else:
                     value = node[param]
                     if param == 'op':
-                        value = node_to_ops[value]
+                        value = node_to_ops[value]['id']
                     if param == 'mode' and node['op'] == 'Pad':
                         value = pads_to_mods[value]
-                    if op_name in attribute_to_pos:
-                        cur_pos = attribute_to_pos[op_name][0] if isinstance(attribute_to_pos[op_name], list) else attribute_to_pos[op_name]
-                        embedding[cur_pos] = value
+                    if op_name in attribute_parameters:
+                        cur_pos = attribute_parameters[op_name]['pos'][0] if attribute_parameters[op_name]['len'] > 1 else attribute_parameters[op_name]['pos']
+                        if value == sys.maxsize:
+                            embedding[cur_pos] = None
+                        else:
+                            embedding[cur_pos] = value
 
             edge_list = list(self.adj[id])
             # embedding.extend(edge_list)

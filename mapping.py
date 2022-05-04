@@ -12,14 +12,19 @@ class OperationMapping:
         return 'nn.Sigmoid()'
 
     @staticmethod
-    def maxpool_map(node, in_shape=None, out_shape=None):
-        result = f'nn.MaxPool2d('
+    def get_new_pads(node):
         new_pads = None
         isCeil = False
         if node.get('pads'):
             if (node['pads'][0] + node['pads'][2]) % 2 == 1 or (node['pads'][1] + node['pads'][3]) % 2 == 1:
                 isCeil = True
             new_pads = [(node['pads'][0] + node['pads'][2]) // 2, (node['pads'][1] + node['pads'][3]) // 2]
+        return new_pads, isCeil
+
+    @staticmethod
+    def maxpool_map(node, in_shape=None, out_shape=None):
+        result = f'nn.MaxPool2d('
+        new_pads, isCeil = OperationMapping.get_new_pads(node)
         parameters = {
             'kernel_size': node.get('kernel_shape'),
             'stride': node.get('strides'),
@@ -49,11 +54,13 @@ class OperationMapping:
         # TODO: Global avgpool https://github.com/onnx/onnx/blob/main/docs/Operators.md#GlobalAveragePool
         if not node.get('kernel_shape'):
             return OperationMapping.adaptive_avgpool_map(node, in_shape, out_shape)
+        new_pads, isCeil = OperationMapping.get_new_pads(node)
         result = f'nn.AvgPool2d('
         parameters = {
             'kernel_size': node.get('kernel_shape'),
             'stride': node.get('strides'),
-            'padding': node['pads'][2:] if node.get('pads') else None,
+            'padding': new_pads,
+            'ceil_mode': isCeil,
         }
         is_first = True
         for param, value in parameters.items():
@@ -115,10 +122,11 @@ class LayerMapping:
     @staticmethod
     def conv_map(node, in_feature, out_feature):
         result = f'nn.Conv2d(in_channels={in_feature}, out_channels={out_feature}'
+        new_pads, isCeil = OperationMapping.get_new_pads(node)
         parameters = {
             'kernel_size': tuple(node['kernel_shape']) if node.get('kernel_shape') else None,
             'stride': tuple(node['strides']) if node.get('strides') else None,
-            'padding': tuple(node['pads'][2:]) if node.get('pads') else None,
+            'padding': new_pads,
             'dilation': tuple(node['dilations']) if node.get('dilations') else None,
             'groups': node.get('group'),
         }
@@ -130,10 +138,11 @@ class LayerMapping:
     @staticmethod
     def transpose_conv_map(node, in_feature, out_feature):
         result = f'nn.ConvTranspose2d(in_channels={in_feature}, out_channels={out_feature}'
+        new_pads, _ = OperationMapping.get_new_pads(node)
         parameters = {
             'kernel_size': tuple(node['kernel_shape']) if node.get('kernel_shape') else None,
             'stride': tuple(node['strides']) if node.get('strides') else None,
-            'padding': tuple(node['pads'][2:]) if node.get('pads') else None,
+            'padding': new_pads,
             'dilation': tuple(node['dilations']) if node.get('dilations') else None,
             'groups': node.get('group'),
         }

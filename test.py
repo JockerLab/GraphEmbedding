@@ -22,6 +22,13 @@ from torchvision import datasets, transforms as T
 import torchvision.models as models
 import timm
 from timm.models.resnet import ResNet, BasicBlock, Bottleneck
+import numpy as np
+from seq_to_seq.attributes_only.decoder import DecoderRNNAttributes
+from seq_to_seq.attributes_only.encoder import EncoderRNNAttributes
+from seq_to_seq.attributes_only.seq2seq import Seq2SeqAttributes
+from seq_to_seq.edges_only.decoder import DecoderRNNEdges
+from seq_to_seq.edges_only.encoder import EncoderRNNEdges
+from seq_to_seq.edges_only.seq2seq import Seq2SeqEdges
 
 # models = {
 # 'resnet18': models.resnet18(),
@@ -60,13 +67,14 @@ from timm.models.resnet import ResNet, BasicBlock, Bottleneck
 # 'classification': NaturalSceneClassification(),
 # }
 
-
 with open(f'./data/embeddings/test.json', 'r') as f:
     test_input = json.load(f)
 vals = []
 min_vals = []
 max_vals = []
-NODE_EMBEDDING_DIM = 50
+NODE_EMBEDDING_DIM = 113
+ATTRIBUTES_POS_COUNT = 50
+MAX_N = 3000
 if os.path.isfile('./data/embeddings/min_max.json'):
     with open(f'./data/embeddings/min_max.json', 'r') as f:
         vals = json.load(f)
@@ -74,32 +82,40 @@ if os.path.isfile('./data/embeddings/min_max.json'):
     max_vals = vals[1]
     for i in range(len(test_input)):
         for j in range(NODE_EMBEDDING_DIM):
+            if j == ATTRIBUTES_POS_COUNT:
+                continue
             if max_vals[j] == min_vals[j]:
-                test_input[i][j] = max_vals[j]
+                test_input[i][j] = float(max_vals[j])
+            elif test_input[i][j] == -1:
+                test_input[i][j] = -1.
             else:
-                test_input[i][j] = 2 * (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j]) - 1
-SOS_token = torch.tensor([[[-1.] * NODE_EMBEDDING_DIM]])
-EOS_token = torch.tensor([[[1.] * NODE_EMBEDDING_DIM]])
+                test_input[i][j] = (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j])
 test_len = len(test_input)
-test_input = torch.tensor(test_input)[:, :NODE_EMBEDDING_DIM].view(1, test_len, -1)
-test_input = torch.cat([SOS_token, test_input, EOS_token], 1)
-encoder = EncoderRNN(NODE_EMBEDDING_DIM, 8192, 1, 0)
-decoder = DecoderRNN(NODE_EMBEDDING_DIM, 8192, 1, 0)
-model = Seq2Seq(encoder, decoder)
-model.load_state_dict(torch.load('autoencoder_model/seq2seq_best_sum_1.pt'))
-embd = model.encode(test_input)
-# Denormalization output
-kek = 0
+test_input = torch.from_numpy(np.array([test_input]))
+encoder_attributes = EncoderRNNAttributes(1, 40, 1, 0)
+decoder_attributes = DecoderRNNAttributes(1, 40, 1, 0)
+model_attributes = Seq2SeqAttributes(encoder_attributes, decoder_attributes)
+encoder_edges = EncoderRNNEdges(NODE_EMBEDDING_DIM - ATTRIBUTES_POS_COUNT - 1, 30, 1, 0, MAX_N)
+decoder_edges = DecoderRNNEdges(NODE_EMBEDDING_DIM - ATTRIBUTES_POS_COUNT - 1, 30, 1, 0, MAX_N)
+model_edges = Seq2SeqEdges(encoder_edges, decoder_edges)
+model_attributes.load_state_dict(torch.load('seq_to_seq/attributes_only/seq2seq_model_1.pt'))
+model_edges.load_state_dict(torch.load('seq_to_seq/edges_only/seq2seq_model_1.pt'))
+
+# Test: network -> graph -> embedding -> graph -> network
 xs = torch.zeros([1, 3, 224, 224])
-g = NeuralNetworkGraph.get_graph(embd, model)
+model = models.resnet18()
+g = NeuralNetworkGraph(model=model, test_batch=xs)
+embedding = g.get_embedding(model_attributes, model_edges)
+g1 = NeuralNetworkGraph.get_graph(embedding, model_attributes, model_edges)
 # print(g.get_embedding(model))
+with open('./tmp_model.py', 'w') as f:
+    f.write('')
 import tmp_model
-Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+Converter(g1, filepath='./tmp_model.py', model_name='Tmp')
 importlib.reload(tmp_model)
-xs = torch.zeros([1, 3, 224, 224])
 tmp_model.Tmp()(xs)
 kek = 0
-
+os.remove('./tmp_model.py')
 
 
 # import tmp_model
@@ -215,28 +231,22 @@ kek = 0
 # for name in model_names:
 #     models[name] = timm.create_model(name)
 
-# # Add embedding model to archive dataset
+# # Test: network -> graph -> network
 # with open('./tmp_model.py', 'w') as f:
 #     f.write('')
 # import tmp_model
-# with zipfile.ZipFile('./data/embeddings/embeddings-zip-torch.zip', 'a') as archive:
-#     for name, model in models.items():
-#         print(f'{name} model is processing')
-#         xs = torch.zeros([4, 3, 224, 224])
-#         if name == 'inception':
-#             xs = torch.zeros([4, 3, 299, 299])
-#         if name == 'classification':
-#             xs = torch.zeros([128, 3, 150, 150])
-#         g = NeuralNetworkGraph(model=model, test_batch=xs)
-#         embedding = g.get_naive_embedding()
-#         Converter(g, filepath='./tmp_model.py', model_name='Tmp')
-#         importlib.reload(tmp_model)
-#         tmp_model.Tmp()(xs)
-#         for e in embedding:
-#             for i in range(len(e)):
-#                 if e[i] == None:
-#                     e[i] = -1
-#         archive.writestr(f'generated--{name}.json', json.dumps(embedding))
+# for name, model in models.items():
+#     print(f'{name} model is processing')
+#     xs = torch.zeros([4, 3, 224, 224])
+#     if name == 'inception':
+#         xs = torch.zeros([4, 3, 299, 299])
+#     if name == 'classification':
+#         xs = torch.zeros([128, 3, 150, 150])
+#     g = NeuralNetworkGraph(model=model, test_batch=xs)
+#     embedding = g.get_naive_embedding()
+#     Converter(g, filepath='./tmp_model.py', model_name='Tmp')
+#     importlib.reload(tmp_model)
+#     tmp_model.Tmp()(xs)
 # os.remove('./tmp_model.py')
 
 

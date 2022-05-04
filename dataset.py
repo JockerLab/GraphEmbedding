@@ -4,27 +4,45 @@ import torch
 import os
 import utils
 import zipfile
+import random
 
+SEED = 1234
+random.seed(SEED)
 
 class EmbeddingDataset(Dataset):
-    def __init__(self, root, transform=None, normalize=True):
-        self.data = []
+    def __init__(self, root, train=True, transform=None, normalize=True):
+        self.train_data = []
+        self.test_data = []
+        self.train = train
         self.transform = transform
         archive_path = os.path.join(root, 'embeddings-zip.zip')
         archive = zipfile.ZipFile(archive_path, 'r')
         for name in archive.namelist():
             with archive.open(name, 'r') as file:
                 embedding = json.load(file)
-                self.data.append(embedding)
+                rnd = random.random()
+                if self.train and rnd < 0.7:
+                    self.train_data.append(embedding)
+                elif not self.train and rnd > 0.7:
+                    self.test_data.append(embedding)
         if normalize:
-            self.data = utils.normalize_dataset(self.data)
+            if self.train:
+                self.train_data = utils.normalize_dataset(self.train_data)
+            else:
+                self.test_data = utils.normalize_dataset(self.test_data)
         archive.close()
 
     def __len__(self):
-        return len(self.data)
+        if self.train:
+            return len(self.train_data)
+        else:
+            return len(self.test_data)
 
     def __getitem__(self, idx):
-        embedding = self.data[idx]
+        if self.train:
+            embedding = self.train_data[idx]
+        else:
+            embedding = self.test_data[idx]
         if self.transform:
             embedding = self.transform(embedding)
         return embedding

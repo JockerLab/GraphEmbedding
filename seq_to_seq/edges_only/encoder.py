@@ -2,10 +2,10 @@ import torch
 from torch import nn
 
 
-class EncoderRNN(nn.Module):
+class EncoderRNNEdges(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, dropout, max_node):
         # input_size = node_dim
-        super(EncoderRNN, self).__init__()
+        super(EncoderRNNEdges, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -16,7 +16,7 @@ class EncoderRNN(nn.Module):
     def forward(self, embedding):
         # embedding: (batch_size, embedding_dim, node_dim)
 
-        embedding = self.embedding(embedding).unsqueeze(0)
+        embedding = self.dropout(self.embedding(embedding).unsqueeze(0))
         # embedding: (batch_size, embedding_dim, node_dim)
 
         output, hidden = self.gru(embedding)
