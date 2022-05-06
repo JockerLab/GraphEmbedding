@@ -145,85 +145,68 @@ if __name__ == '__main__':
     test_input = torch.from_numpy(np.array([test_input]))[:, :, :(ATTRIBUTES_POS_COUNT + 1)]
     # test_input = torch.cat([SOS_token, test_input[0, 0, (ATTRIBUTES_POS_COUNT + 1):]], 1)
 
-    dropouts = [0.5]
-    hidden_sizes = [40]  # 30
-    optimizers = [optim.Adamax]  # [optim.Adam, optim.AdamW, optim.Adamax]
-    learning_rates = [1e-3]  # [1e-2, 1e-3]
-    reductions = ['sum']  # ['mean', 'sum']
-    iter_num = 0
+    dropout = 0
+    hidden_size = 30  # [128, 256, 512, 1024]
+    lr = 1e-3  # [1e-2, 1e-3]
+    optim_func = optim.Adam
 
-    all_losses = []
-    with open(f'losses.json', 'r') as f:
-        all_losses = json.load(f)
+    # all_losses = []
+    # with open(f'losses.json', 'r') as f:
+    #     all_losses = json.load(f)
+    #
+    # train_losses = all_losses['train']
+    # eval_losses = all_losses['eval']
+    # test_losses = all_losses['test']
 
-    train_losses = all_losses['train']
-    eval_losses = all_losses['eval']
-    test_losses = all_losses['test']
+    train_losses = []
+    eval_losses = []
+    test_losses = []
 
-    # train_losses = []
-    # eval_losses = []
-    # test_losses = []
+    print(f'{hidden_size}, {dropout}, {optim_func}, {lr}, {reduction}')
+    encoder = EncoderRNNAttributes(1, hidden_size,
+                                   num_layers, dropout).to(device)
+    decoder = DecoderRNNAttributes(1, hidden_size,
+                                   num_layers, dropout).to(device)
+    model = Seq2SeqAttributes(encoder, decoder).to(device)
+    # model.load_state_dict(torch.load('seq2seq_model_2.pt'))
+    optimizer = optim_func(model.parameters(), lr=lr)
+    criterion = nn.MSELoss(reduction='sum')
 
-    for hidden_size in hidden_sizes:
-        for dropout in dropouts:
-            for optim_func in optimizers:
-                for lr in learning_rates:
-                    for reduction in reductions:
-                        iter_num += 1
-                        print(f'Iter {iter_num} is processing')
-                        print(f'{hidden_size}, {dropout}, {optim_func}, {lr}, {reduction}')
-                        encoder = EncoderRNNAttributes(1, hidden_size,
-                                                       num_layers, dropout).to(device)
-                        decoder = DecoderRNNAttributes(1, hidden_size,
-                                                       num_layers, dropout).to(device)
-                        model = Seq2SeqAttributes(encoder, decoder).to(device)
-                        model.load_state_dict(torch.load('seq2seq_model_1.pt'))
-                        optimizer = optim_func(model.parameters(), lr=lr)
-                        criterion = nn.MSELoss(reduction='sum')
+    best_valid_loss = float('inf')
+    test_loss_change = 0
+    test_loss_last = 0
+    for epoch in range(N_EPOCHS):
+        start_time = time.time()
+        train_loss = 0
+        eval_loss = 0
+        test_loss = 0
 
-                        best_valid_loss = float('inf')
-                        test_loss_change = 0
-                        test_loss_last = 0
-                        for epoch in range(N_EPOCHS):
-                            start_time = time.time()
-                            train_loss = 0
-                            eval_loss = 0
-                            test_loss = 0
+        train_loss += train(train_loader, model, optimizer, criterion, clip=1)
+        eval_loss += evaluate(test_loader, model, criterion)
+        end_time = time.time()
 
-                            # train_loss += train(train_loader, model, optimizer, criterion, clip=1)
-                            # eval_loss += evaluate(test_loader, model, criterion)
-                            end_time = time.time()
+        epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-                            epoch_mins, epoch_secs = epoch_time(start_time, end_time)
+        for row in test_input[0]:
+            data_len, test_embedding = model.encode(row)
+            test_output = model.decode(test_embedding, data_len)
+            # test_loss += criterion(test_output[1:, 0], test_seq[1:])
+        test_loss_change = test_loss - test_loss_last
+        test_loss_last = test_loss
 
-                            for row in test_input[0]:
-                                data_len, test_embedding = model.encode(row)
-                                test_output = model.decode(test_embedding, data_len)
-                                # test_loss += criterion(test_output[1:, 0], test_seq[1:])
-                            test_loss_change = test_loss - test_loss_last
-                            test_loss_last = test_loss
+        train_losses.append(float(train_loss))
+        eval_losses.append(float(eval_loss))
+        test_losses.append(float(test_loss))
+        with open(f'losses2.json', 'w') as f:
+            f.write(json.dumps({'train': train_losses, 'eval': eval_losses, 'test': test_losses}))
 
-                            train_losses.append(float(train_loss))
-                            eval_losses.append(float(eval_loss))
-                            test_losses.append(float(test_loss))
-                            # with open(f'losses.json', 'w') as f:
-                            #     f.write(json.dumps({'train': train_losses, 'eval': eval_losses, 'test': test_losses}))
-                            #
-                            # if eval_loss < best_valid_loss:
-                            #     best_valid_loss = eval_loss
-                            #     torch.save(model.state_dict(), f'seq2seq_model_{iter_num}.pt')
+        if eval_loss < best_valid_loss:
+            best_valid_loss = eval_loss
+            torch.save(model.state_dict(), f'seq2seq_model.pt')
 
-                            print(f'Epoch: {epoch + 1:02} | Time: {epoch_mins}m {epoch_secs}s')
-                            print(
-                                f'\tTrain Loss: {train_loss:.5f} | Eval Loss: {eval_loss:.5f} | Test Loss: {test_loss:.5f}, loss change: {test_loss_change:.5f}')
-                        # if best_valid_loss < best_valid_loss_total_sum and reduction == 'sum':
-                        #     best_valid_loss_total_sum = best_valid_loss
-                        #     torch.save(model.state_dict(),
-                        #                f'seq2seq_best_sum_{iter_num}.pt')
-                        # if best_valid_loss < best_valid_loss_total_mean and reduction == 'mean':
-                        #     best_valid_loss_total_mean = best_valid_loss
-                        #     torch.save(model.state_dict(),
-                        #                f'seq2seq_best_mean_{iter_num}.pt')
-                        print('\n\n-------------------------------------\n')
+        print(f'Epoch: {epoch + 1:02} | Time: {epoch_mins}m {epoch_secs}s')
+        print(
+            f'\tTrain Loss: {train_loss:.5f} | Eval Loss: {eval_loss:.5f} | Test Loss: {test_loss:.5f}, loss change: {test_loss_change:.5f}')
+    print('\n\n-------------------------------------\n')
 
     # torch.save(model.state_dict(), 'seq2seq_model.pt')

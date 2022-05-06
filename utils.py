@@ -39,7 +39,7 @@ def normalize_dataset(dataset):
     for emb in range(len(dataset)):
         for i in range(len(dataset[emb])):
             for j in range(NODE_EMBEDDING_DIMENSION):
-                if j == ATTRIBUTES_POS_COUNT:
+                if j == ATTRIBUTES_POS_COUNT or j == attribute_parameters['op']['pos']:
                     continue
                 if max_vals[j] == min_vals[j]:
                     dataset[emb][i][j] = float(max_vals[j])

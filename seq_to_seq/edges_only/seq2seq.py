@@ -6,51 +6,51 @@ from graph import MAX_NODE, ATTRIBUTES_POS_COUNT
 
 
 class Seq2SeqEdges(nn.Module):
-    def __init__(self, encoder, decoder):
+    def __init__(self, encoder, decoder, encoder_optimizer, decoder_optimizer):
         super(Seq2SeqEdges, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self.encoder_optimizer = encoder_optimizer
+        self.decoder_optimizer = decoder_optimizer
 
-    def forward(self, source, target, data_len, teacher_forcing_ratio=0.5):
-        # source: (batch_size, embedding_dim, node_dim)
-        # target: (batch_size, embedding_dim, node_dim)
+    def train(self):
+        self.encoder.train()
+        self.decoder.train()
 
-        target_output_size = self.decoder.output_size
-        outputs = torch.zeros(data_len + 1, target_output_size)
+    def eval(self):
+        self.encoder.eval()
+        self.decoder.eval()
 
-        hidden = self.encoder(source[:(data_len + 1)])
+    def train_batch(self, inputs):
+        num_steps = inputs.shape[0]
+        self.encoder.hidden = self.encoder.init_hidden()
+        self.encoder_optimizer.zero_grad()
+        self.decoder_optimizer.zero_grad()
+        z = self.encoder(inputs)
+        loss, outputs = self.decoder(inputs, z)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), 1)
+        torch.nn.utils.clip_grad_norm_(self.decoder.parameters(), 1)
+        self.encoder_optimizer.step()
+        self.decoder_optimizer.step()
+        return loss.item() / num_steps, outputs
 
-        input = target[0]  # SOS_token
-        # input: (batch_size, node_dim)
+    def eval_batch(self, inputs):
+        num_steps = inputs.shape[0]
+        self.encoder.hidden = self.encoder.init_hidden()
+        z = self.encoder(inputs)
+        loss, outputs = self.decoder(inputs, z, 0)
+        return loss.item() / num_steps, outputs
 
-        for i in range(1, data_len + 1):
-            output, hidden = self.decoder(input, hidden)
-            # output: (1, output_size)
-            # hidden: (num_layers, batch_size, hidden_size)
+    def save_models(self, encoder_file_name, decoder_file_name):
+        torch.save(self.encoder.state_dict(), encoder_file_name)
+        torch.save(self.decoder.state_dict(), decoder_file_name)
 
-            outputs[i] = output
-            input = target[i] if random.random() < teacher_forcing_ratio else output.argmax(1)[0]
+    def encode(self, inputs):
+        self.encoder.hidden = self.encoder.init_hidden()
+        z = self.encoder(inputs)
+        return z.view(-1)
 
-        return outputs
-
-    def encode(self, source, data_len):
-        # source: (batch_size, embedding_dim, node_dim)
-        SOS_token = torch.tensor([0])
-        source = torch.tensor(source[(ATTRIBUTES_POS_COUNT + 1):])
-        source = torch.cat([SOS_token, source])
-        return self.encoder(source[:(data_len + 1)])
-
-    def decode(self, embedding, data_len, batch_size=1):
-        SOS_token = torch.tensor([0])
-        hidden = embedding
-        input = SOS_token[0]
-        outputs = torch.zeros(data_len + 1, 1)
-        for i in range(1, data_len + 1):
-            output, hidden = self.decoder(input, hidden)
-            # output: (1, output_size)
-            # hidden: (num_layers, batch_size, hidden_size)
-
-            outputs[i] = output.argmax(1)[0]
-            input = output.argmax(1)[0]
-
-        return outputs[1:, :].view(-1)
+    def decode(self, embedding, data_len, check_loss=None):
+        loss, outputs = self.decoder.decode(embedding, data_len, check_loss)
+        return loss.item() / data_len, outputs

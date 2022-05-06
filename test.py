@@ -29,6 +29,7 @@ from seq_to_seq.attributes_only.seq2seq import Seq2SeqAttributes
 from seq_to_seq.edges_only.decoder import DecoderRNNEdges
 from seq_to_seq.edges_only.encoder import EncoderRNNEdges
 from seq_to_seq.edges_only.seq2seq import Seq2SeqEdges
+from graph import attribute_parameters
 
 # models = {
 # 'resnet18': models.resnet18(),
@@ -92,16 +93,43 @@ if os.path.isfile('./data/embeddings/min_max.json'):
                 test_input[i][j] = (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j])
 test_len = len(test_input)
 test_input = torch.from_numpy(np.array([test_input]))
-encoder_attributes = EncoderRNNAttributes(1, 40, 1, 0)
-decoder_attributes = DecoderRNNAttributes(1, 40, 1, 0)
+encoder_attributes = EncoderRNNAttributes(1, 30, 1, 0)
+decoder_attributes = DecoderRNNAttributes(1, 30, 1, 0)
 model_attributes = Seq2SeqAttributes(encoder_attributes, decoder_attributes)
 encoder_edges = EncoderRNNEdges(NODE_EMBEDDING_DIM - ATTRIBUTES_POS_COUNT - 1, 30, 1, 0, MAX_N)
 decoder_edges = DecoderRNNEdges(NODE_EMBEDDING_DIM - ATTRIBUTES_POS_COUNT - 1, 30, 1, 0, MAX_N)
 model_edges = Seq2SeqEdges(encoder_edges, decoder_edges)
 model_attributes.load_state_dict(torch.load('seq_to_seq/attributes_only/seq2seq_model_1.pt'))
-model_edges.load_state_dict(torch.load('seq_to_seq/edges_only/seq2seq_model_1.pt'))
+model_edges.load_state_dict(torch.load('seq_to_seq/edges_only/seq2seq_model.pt'))
 
 # Test: network -> graph -> embedding -> graph -> network
+
+# embed = model_edges.encode(torch.LongTensor([1, 2, 3, 4, 5, 6, 7]), 7)
+# out_embed = model_edges.decode(embed, 5)
+
+data_len, embed = model_attributes.encode([-1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, 1, -1, 11, 11, -1, -1, 0, 4, 64, 55, 55, 2, 2, 2, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 4, 4, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
+out_embed = model_attributes.decode(embed, data_len)
+
+with open(f'./data/embeddings/min_max.json', 'r') as f:
+    vals = json.load(f)
+min_vals = vals[0]
+max_vals = vals[1]
+for i in range(len(out_embed)):
+    if i == ATTRIBUTES_POS_COUNT or attribute_parameters['op']['pos']:
+        continue
+    if max_vals[i] == min_vals[i]:
+        out_embed[i] = max_vals[i]
+    elif out_embed[i] == -1.:
+        continue
+    else:
+        out_embed[i] = ((max_vals[i] - min_vals[i]) / 2) * (out_embed[i] + 1) + min_vals[i]
+
+print([-1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, 1, -1, 11, 11, -1, -1, 0, 4, 64, 55, 55, 2, 2, 2, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 4, 4, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
+for i in range(len(out_embed)):
+    out_embed[i] = round(float(out_embed[i]))
+print(out_embed.tolist())
+kek = 0
+
 xs = torch.zeros([1, 3, 224, 224])
 model = models.resnet18()
 g = NeuralNetworkGraph(model=model, test_batch=xs)

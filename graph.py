@@ -28,12 +28,12 @@ node_to_ops = {
     "Relu": {'id': 7, 'attributes': ['output_shape']},
     "Add": {'id': 8, 'attributes': ['output_shape']},
     "GlobalAveragePool": {'id': 9, 'attributes': ['output_shape']},
-    "AveragePool": {'id': 10, 'attributes': ['output_shape', 'kernel_shape', 'strides', 'pads']},
+    "AveragePool": {'id': 10, 'attributes': ['output_shape', 'kernel_shape', 'pads', 'strides']},
     "Concat": {'id': 11, 'attributes': ['output_shape']},
     "Pad": {'id': 12, 'attributes': ['output_shape', 'pads']},
     "ReduceMean": {'id': 13, 'attributes': ['output_shape', 'axes', 'keepdims']},
     "Tanh": {'id': 14, 'attributes': ['output_shape']},
-    "ConvTranspose": {'id': 15, 'attributes': ['output_shape', 'dilations', 'group', 'kernel_shape', 'strides', 'pads']},
+    "ConvTranspose": {'id': 15, 'attributes': ['output_shape', 'dilations', 'group', 'kernel_shape', 'pads', 'strides']},
     "Slice": {'id': 16, 'attributes': ['output_shape', 'axes', 'starts', 'ends', 'steps']},
     "Elu": {'id': 17, 'attributes': ['output_shape']},
     "Constant": {'id': 18, 'attributes': ['output_shape', 'value']},
@@ -126,7 +126,7 @@ class NeuralNetworkGraph(nx.DiGraph):
         max_vals = vals[1]
         for i in range(len(embedding)):
             for j in range(len(embedding[i])):
-                if j == ATTRIBUTES_POS_COUNT or attribute_parameters['op']['pos']:
+                if j == ATTRIBUTES_POS_COUNT or j == attribute_parameters['op']['pos']:
                     continue
                 if max_vals[j] == min_vals[j]:
                     embedding[i][j] = max_vals[j]
@@ -143,7 +143,7 @@ class NeuralNetworkGraph(nx.DiGraph):
         min_vals = vals[0]
         max_vals = vals[1]
         for i in range(len(embedding)):
-            if i == ATTRIBUTES_POS_COUNT:
+            if i == ATTRIBUTES_POS_COUNT or i == attribute_parameters['op']['pos']:
                 continue
             if max_vals[i] == min_vals[i]:
                 embedding[i] = float(max_vals[i])
