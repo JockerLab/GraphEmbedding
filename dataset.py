@@ -21,9 +21,9 @@ class EmbeddingDataset(Dataset):
             with archive.open(name, 'r') as file:
                 embedding = json.load(file)
                 rnd = random.random()
-                if self.train and rnd < 0.7:
-                    self.train_data.append(embedding)
-                elif not self.train and rnd > 0.7:
+                # if self.train and rnd < 0.7:
+                self.train_data.append(embedding)
+                if not self.train and rnd > 0.7:
                     self.test_data.append(embedding)
         if normalize:
             if self.train:

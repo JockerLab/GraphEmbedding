@@ -18,29 +18,29 @@ NONE_REPLACEMENT = -1
 MAX_NODE = 3_000  # for 200 layers in network
 
 node_to_ops = {
-    "Conv": {'id': 0, 'attributes': ['output_shape', 'dilations', 'group', 'kernel_shape', 'pads', 'strides']},
-    "LeakyRelu": {'id': 1, 'attributes': ['output_shape']},
-    "MaxPool": {'id': 2, 'attributes': ['output_shape', 'dilations', 'kernel_shape', 'pads', 'strides']},
-    "Flatten": {'id': 3, 'attributes': ['output_shape']},
-    "Linear": {'id': 4, 'attributes': ['output_shape']},
-    "Sigmoid": {'id': 5, 'attributes': ['output_shape']},
-    "BatchNorm": {'id': 6, 'attributes': ['output_shape', 'epsilon', 'momentum']},
-    "Relu": {'id': 7, 'attributes': ['output_shape']},
-    "Add": {'id': 8, 'attributes': ['output_shape']},
-    "GlobalAveragePool": {'id': 9, 'attributes': ['output_shape']},
-    "AveragePool": {'id': 10, 'attributes': ['output_shape', 'kernel_shape', 'pads', 'strides']},
-    "Concat": {'id': 11, 'attributes': ['output_shape']},
-    "Pad": {'id': 12, 'attributes': ['output_shape', 'pads']},
-    "ReduceMean": {'id': 13, 'attributes': ['output_shape', 'axes', 'keepdims']},
-    "Tanh": {'id': 14, 'attributes': ['output_shape']},
-    "ConvTranspose": {'id': 15, 'attributes': ['output_shape', 'dilations', 'group', 'kernel_shape', 'pads', 'strides']},
-    "Slice": {'id': 16, 'attributes': ['output_shape', 'axes', 'starts', 'ends', 'steps']},
-    "Elu": {'id': 17, 'attributes': ['output_shape']},
-    "Constant": {'id': 18, 'attributes': ['output_shape', 'value']},
-    "Reshape": {'id': 19, 'attributes': ['output_shape']},
-    "Mul": {'id': 20, 'attributes': ['output_shape']},
-    "Transpose": {'id': 21, 'attributes': ['output_shape', 'perm']},
-    "LogSoftmax": {'id': 22, 'attributes': ['output_shape']},
+    "Conv": {'id': 0, 'attributes': ['op', 'output_shape', 'dilations', 'group', 'kernel_shape', 'pads', 'strides']},
+    "LeakyRelu": {'id': 1, 'attributes': ['op', 'output_shape']},
+    "MaxPool": {'id': 2, 'attributes': ['op', 'output_shape', 'dilations', 'kernel_shape', 'pads', 'strides']},
+    "Flatten": {'id': 3, 'attributes': ['op', 'output_shape']},
+    "Linear": {'id': 4, 'attributes': ['op', 'output_shape']},
+    "Sigmoid": {'id': 5, 'attributes': ['op', 'output_shape']},
+    "BatchNorm": {'id': 6, 'attributes': ['op', 'output_shape', 'epsilon', 'momentum']},
+    "Relu": {'id': 7, 'attributes': ['op', 'output_shape']},
+    "Add": {'id': 8, 'attributes': ['op', 'output_shape']},
+    "GlobalAveragePool": {'id': 9, 'attributes': ['op', 'output_shape']},
+    "AveragePool": {'id': 10, 'attributes': ['op', 'output_shape', 'kernel_shape', 'pads', 'strides']},
+    "Concat": {'id': 11, 'attributes': ['op', 'output_shape']},
+    "Pad": {'id': 12, 'attributes': ['op', 'output_shape', 'pads']},
+    "ReduceMean": {'id': 13, 'attributes': ['op', 'output_shape', 'axes', 'keepdims']},
+    "Tanh": {'id': 14, 'attributes': ['op', 'output_shape']},
+    "ConvTranspose": {'id': 15, 'attributes': ['op', 'output_shape', 'dilations', 'group', 'kernel_shape', 'pads', 'strides']},
+    "Slice": {'id': 16, 'attributes': ['op', 'output_shape', 'axes', 'starts', 'ends', 'steps']},
+    "Elu": {'id': 17, 'attributes': ['op', 'output_shape']},
+    "Constant": {'id': 18, 'attributes': ['op', 'output_shape', 'value']},
+    "Reshape": {'id': 19, 'attributes': ['op', 'output_shape']},
+    "Mul": {'id': 20, 'attributes': ['op', 'output_shape']},
+    "Transpose": {'id': 21, 'attributes': ['op', 'output_shape', 'perm']},
+    "LogSoftmax": {'id': 22, 'attributes': ['op', 'output_shape']},
 }
 
 pads_to_mods = {
@@ -69,7 +69,7 @@ attribute_parameters = {
     "steps": {'len': 4, 'pos': [36, 37, 38, 39], 'type': 'int', 'range': [0, float('inf')], 'default': [-1, -1, -1, -1]},
     "strides": {'len': 2, 'pos': [40, 41], 'type': 'int', 'range': [0, float('inf')], 'default': [1, 1]},
     "value": {'len': 4, 'pos': [42, 43, 44, 45], 'type': 'int', 'range': [0, float('inf')], 'default': [0, 0, 0, 0]},
-    "perm": {'len': 4, 'pos': [46, 47, 48, 49], 'type': 'int', 'range': [0, 4], 'default': [0, 1, 2, 3]},
+    "perm": {'len': 4, 'pos': [46, 47, 48, 49], 'type': 'int', 'range': [0, 4], 'default': [-1, -1, -1, -1]},
     "edge_list_len": {'len': 1, 'pos': 50, 'type': 'int', 'range': [0, NODE_EMBEDDING_DIMENSION - ATTRIBUTES_POS_COUNT - 1], 'default': 1},
     "edge_list": {'type': 'int', 'range': [0, MAX_NODE]},
     # "skip_connections": [50, ...]
@@ -126,7 +126,7 @@ class NeuralNetworkGraph(nx.DiGraph):
         max_vals = vals[1]
         for i in range(len(embedding)):
             for j in range(len(embedding[i])):
-                if j == ATTRIBUTES_POS_COUNT or j == attribute_parameters['op']['pos']:
+                if j >= ATTRIBUTES_POS_COUNT or j == attribute_parameters['op']['pos']:
                     continue
                 if max_vals[j] == min_vals[j]:
                     embedding[i][j] = max_vals[j]
@@ -143,7 +143,7 @@ class NeuralNetworkGraph(nx.DiGraph):
         min_vals = vals[0]
         max_vals = vals[1]
         for i in range(len(embedding)):
-            if i == ATTRIBUTES_POS_COUNT or i == attribute_parameters['op']['pos']:
+            if i >= ATTRIBUTES_POS_COUNT or i == attribute_parameters['op']['pos']:
                 continue
             if max_vals[i] == min_vals[i]:
                 embedding[i] = float(max_vals[i])

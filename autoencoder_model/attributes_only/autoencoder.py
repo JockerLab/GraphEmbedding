@@ -62,9 +62,10 @@ class VAE(nn.Module):
         hidden = self.reparametrize(mu, log_var)
         return hidden
 
-    def create_sequence(self, inputs):
+    @staticmethod
+    def create_sequence(inputs):
         operation_id = int(inputs[attribute_parameters['op']['pos']])
-        sequence = [float(operation_id) / len(node_to_ops)]
+        sequence = []
         op_name = str(list(filter(lambda x: node_to_ops[x]['id'] == operation_id, node_to_ops))[0])
         operation = node_to_ops[op_name]
         output_shape = []
@@ -87,13 +88,10 @@ class VAE(nn.Module):
                     else:
                         sequence.append(float(inputs[ids[i]]))
 
-        # TODO: for all
-        for i in range(20 - len(sequence)):
-            sequence.append(-1.)
-
         return operation_id, output_shape, torch.tensor(sequence)
 
-    def get_sequence(self, operation_id, output_shape, embedding):
+    @staticmethod
+    def get_sequence(operation_id, output_shape, embedding):
         result = [-1.] * ATTRIBUTES_POS_COUNT
         op_name = str(list(filter(lambda x: node_to_ops[x]['id'] == operation_id, node_to_ops))[0])
         operation = node_to_ops[op_name]

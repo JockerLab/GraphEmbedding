@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from dataset import EmbeddingDataset
 from autoencoder_model.attributes_only.autoencoder import VAE
-from graph import attribute_parameters
+from graph import attribute_parameters, node_to_ops
 
 SEED = 1234
 random.seed(SEED)
@@ -26,37 +26,42 @@ eval_losses = []
 test_losses = []
 
 
-def train(loader, model, optimizer):
-    model.train()
+def train(loader, models, optimizers):
+    for model in models:
+        if model is not None:
+            model.train()
     epoch_loss = 0
     for i, data in enumerate(loader):
         # data: (batch_size, embedding_dim, node_dim)
 
-        optimizer.zero_grad()
+        for optimizer in optimizers:
+            if optimizer is not None:
+                optimizer.zero_grad()
 
         for row in data:
-            _, _, sequence = model.create_sequence(row[:ATTRIBUTES_POS_COUNT])
-            loss, _ = model.training_step(sequence)
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
+            operation_id, _, sequence = VAE.create_sequence(row[:ATTRIBUTES_POS_COUNT])
+            if models[operation_id] is not None:
+                loss, _ = models[operation_id].training_step(sequence)
+                loss.backward()
+                optimizers[operation_id].step()
+                epoch_loss += loss.item()
 
     return epoch_loss / len(loader)
 
 
-def evaluate(loader, model):
-    model.eval()
+def evaluate(loader, models):
+    for model in models:
+        if model is not None:
+            model.eval()
     epoch_loss = 0
     with torch.no_grad():
         for i, data in enumerate(loader):
             # data: (batch_size, embedding_dim, node_dim)
 
-            for i, data in enumerate(loader):
-                # data: (batch_size, embedding_dim, node_dim)
-
-                for row in data:
-                    _, _, sequence = model.create_sequence(row[:ATTRIBUTES_POS_COUNT])
-                    loss, _ = model.training_step(sequence)
+            for row in data:
+                operation_id, _, sequence = VAE.create_sequence(row[:ATTRIBUTES_POS_COUNT])
+                if models[operation_id] is not None:
+                    loss, _ = models[operation_id].training_step(sequence)
                     epoch_loss += loss.item()
 
     return epoch_loss / len(loader)
@@ -98,8 +103,19 @@ if __name__ == '__main__':
                              batch_size=1,
                              shuffle=False)
 
-    model = VAE(shapes=[20, 15, 10]).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    models = [None] * len(node_to_ops)
+    optimizers = [None] * len(node_to_ops)
+    for i in range(len(node_to_ops)):
+        op_name = str(list(filter(lambda x: node_to_ops[x]['id'] == i, node_to_ops))[0])
+        operation = node_to_ops[op_name]
+        total_len = 0
+        for attribute in operation['attributes']:
+            if attribute == 'output_shape':
+                continue
+            total_len += attribute_parameters[attribute]['len']
+        if total_len > 0:
+            models[i] = VAE(shapes=[total_len, 10, 5]).to(device)
+            optimizers[i] = optim.Adam(models[i].parameters(), lr=lr)
 
     with open(f'../../data/embeddings/test.json', 'r') as f:
         test_input = json.load(f)
@@ -111,8 +127,8 @@ if __name__ == '__main__':
         max_vals = vals[1]
         for i in range(len(test_input)):
             for j in range(NODE_EMBEDDING_DIMENSION):
-                if j == ATTRIBUTES_POS_COUNT or j == attribute_parameters['op']['pos']:
-                    break
+                if j >= ATTRIBUTES_POS_COUNT or j == attribute_parameters['op']['pos']:
+                    continue
                 if max_vals[j] == min_vals[j]:
                     test_input[i][j] = float(max_vals[j])
                 elif test_input[i][j] == -1:
@@ -121,7 +137,7 @@ if __name__ == '__main__':
                     test_input[i][j] = (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j])
     test_len = len(test_input)
     test_row = test_input[0]
-    test_op_id, test_output_shape, test_sequence = model.create_sequence(test_row[:ATTRIBUTES_POS_COUNT])
+    test_op_id, test_output_shape, test_sequence = VAE.create_sequence(test_row[:ATTRIBUTES_POS_COUNT])
 
     best_valid_loss = float('inf')
     train_loss = 0
@@ -135,16 +151,20 @@ if __name__ == '__main__':
         start_time = time.time()
         train_loss = 0
         eval_loss = 0
-        train_loss += train(train_loader, model, optimizer)
-        eval_loss += evaluate(test_loader, model)
+        test_loss = 0
+        train_loss += train(train_loader, models, optimizers)
+        eval_loss += evaluate(test_loader, models)
         end_time = time.time()
 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-        test_loss, test_output = model.training_step(test_sequence)
-        test_loss_change = test_loss - test_loss_last
-        test_loss_last = test_loss
-        print(f'After epoch {epoch + 1}:\n{test_output.tolist()}\n')
+        if models[test_op_id] is not None:
+            test_loss, test_output = models[test_op_id].training_step(test_sequence)
+            test_loss_change = test_loss - test_loss_last
+            test_loss_last = test_loss
+            print(f'After epoch {epoch + 1}:\n{test_output.tolist()}\n')
+        else:
+            print('Model is None\n')
 
         train_losses.append(float(train_loss))
         eval_losses.append(float(eval_loss))
@@ -155,7 +175,11 @@ if __name__ == '__main__':
 
         if eval_loss < best_valid_loss:
             best_valid_loss = eval_loss
-            torch.save(model.state_dict(), f'autoencoder_model.pt')
+            cnt = 0
+            for model in models:
+                if model is not None:
+                    torch.save(model.state_dict(), f'autoencoder_model_{cnt}.pt')
+                cnt += 1
         print(f'Epoch: {epoch + 1:02} | Time: {epoch_mins}m {epoch_secs}s')
         print(f'\tTrain Loss: {train_loss:.3f} | Eval Loss: {eval_loss:.3f} | Test Loss: {test_loss:.3f}, loss change: {test_loss_change:.3f}\n')
 
