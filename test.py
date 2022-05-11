@@ -6,7 +6,8 @@ import zipfile
 import timeit
 from pytorchcv.model_provider import get_model as ptcv_get_model, _models as ptcv_models
 from KD_Lib.models import ResNet18, LeNet, Shallow, ModLeNet, LSTMNet, NetworkInNetwork
-
+from autoencoder_model.edges_only.vae import VAE3 as edges_VAE
+from autoencoder_model.all_attributes.autoencoder import VAE3 as attributes_VAE
 from torchvision.models import alexnet, resnet101, densenet201, googlenet, inception_v3, mnasnet1_3, mobilenet_v3_large, squeezenet1_1, vgg19_bn
 
 from convert import Converter
@@ -68,6 +69,7 @@ from graph import attribute_parameters
 # 'classification': NaturalSceneClassification(),
 # }
 
+torch.set_default_tensor_type(torch.DoubleTensor)
 with open(f'./data/embeddings/test.json', 'r') as f:
     test_input = json.load(f)
 vals = []
@@ -83,63 +85,66 @@ if os.path.isfile('./data/embeddings/min_max.json'):
     max_vals = vals[1]
     for i in range(len(test_input)):
         for j in range(NODE_EMBEDDING_DIM):
-            if j == ATTRIBUTES_POS_COUNT:
+            if j >= ATTRIBUTES_POS_COUNT:
                 continue
-            if max_vals[j] == min_vals[j]:
-                test_input[i][j] = float(max_vals[j])
-            elif test_input[i][j] == -1:
-                test_input[i][j] = -1.
-            else:
-                test_input[i][j] = (test_input[i][j] - min_vals[j]) / (max_vals[j] - min_vals[j])
+            if j == attribute_parameters['op']['pos']:
+                test_input[i][j] = test_input[i][j] / max_vals[j]
+            elif test_input[i][j] == -1 or max_vals[j] == -1:
+                test_input[i][j] = 0.
+            elif j not in [attribute_parameters['alpha']['pos'], attribute_parameters['epsilon']['pos'],
+                           attribute_parameters['momentum']['pos']]:
+                test_input[i][j] = (test_input[i][j] + 1.) / (max_vals[j] + 1.)
 test_len = len(test_input)
-test_input = torch.from_numpy(np.array([test_input]))
-encoder_attributes = EncoderRNNAttributes(1, 30, 1, 0)
-decoder_attributes = DecoderRNNAttributes(1, 30, 1, 0)
-model_attributes = Seq2SeqAttributes(encoder_attributes, decoder_attributes)
-encoder_edges = EncoderRNNEdges(NODE_EMBEDDING_DIM - ATTRIBUTES_POS_COUNT - 1, 30, 1, 0, MAX_N)
-decoder_edges = DecoderRNNEdges(NODE_EMBEDDING_DIM - ATTRIBUTES_POS_COUNT - 1, 30, 1, 0, MAX_N)
-model_edges = Seq2SeqEdges(encoder_edges, decoder_edges)
-model_attributes.load_state_dict(torch.load('seq_to_seq/attributes_only/seq2seq_model_1.pt'))
-model_edges.load_state_dict(torch.load('seq_to_seq/edges_only/seq2seq_model.pt'))
+test_input = torch.tensor(test_input)
+
+
+# Initializing models
+model_edges = edges_VAE(
+            shapes=[62, 45, 30],
+            init_mean=0,
+            init_std=1. / 3000
+        )
+model_edges.load_state_dict(torch.load(f'autoencoder_model/edges_only/vae_model.pt'))
+models_attributes = {}
+pre_hidden_size = 4  # 4
+hidden_size = 2  # 2
+for name, attrs in attribute_parameters.items():
+    if name in ['edge_list_len', 'edge_list']:
+        continue
+    mean = 0
+    if name in ['alpha', 'epsilon', 'momentum']:
+        std = 1e-5 / 2.
+    elif name == 'op':
+        std = (1. / max_vals[attrs['pos']]) / 2.
+    else:
+        std = (1. / (max_vals[attrs['pos'][0] if isinstance(attrs['pos'], list) else attrs['pos']] + 1.)) / 2.
+    models_attributes[name] = attributes_VAE(
+        shapes=[attrs['len'], pre_hidden_size, hidden_size],
+        init_mean=mean,
+        init_std=std
+    )
+    models_attributes[name].load_state_dict(torch.load(f'autoencoder_model/all_attributes/models/autoencoder_model_{name}.pt'))
+
 
 # Test: network -> graph -> embedding -> graph -> network
-
 # embed = model_edges.encode(torch.LongTensor([1, 2, 3, 4, 5, 6, 7]), 7)
 # out_embed = model_edges.decode(embed, 5)
 
-data_len, embed = model_attributes.encode([-1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, 1, -1, 11, 11, -1, -1, 0, 4, 64, 55, 55, 2, 2, 2, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 4, 4, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
-out_embed = model_attributes.decode(embed, data_len)
+# data_len, embed = model_attributes.encode([-1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, 1, -1, 11, 11, -1, -1, 0, 4, 64, 55, 55, 2, 2, 2, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 4, 4, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
+# out_embed = model_attributes.decode(embed, data_len)
 
-with open(f'./data/embeddings/min_max.json', 'r') as f:
-    vals = json.load(f)
-min_vals = vals[0]
-max_vals = vals[1]
-for i in range(len(out_embed)):
-    if i == ATTRIBUTES_POS_COUNT or attribute_parameters['op']['pos']:
-        continue
-    if max_vals[i] == min_vals[i]:
-        out_embed[i] = max_vals[i]
-    elif out_embed[i] == -1.:
-        continue
-    else:
-        out_embed[i] = ((max_vals[i] - min_vals[i]) / 2) * (out_embed[i] + 1) + min_vals[i]
 
-print([-1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, 1, -1, 11, 11, -1, -1, 0, 4, 64, 55, 55, 2, 2, 2, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 4, 4, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
-for i in range(len(out_embed)):
-    out_embed[i] = round(float(out_embed[i]))
-print(out_embed.tolist())
-kek = 0
-
-xs = torch.zeros([1, 3, 224, 224])
+xs = torch.zeros([64, 3, 224, 224])
 model = models.resnet18()
-g = NeuralNetworkGraph(model=model, test_batch=xs)
-embedding = g.get_embedding(model_attributes, model_edges)
-g1 = NeuralNetworkGraph.get_graph(embedding, model_attributes, model_edges)
+# g = NeuralNetworkGraph(model=model, test_batch=xs)
+# embedding = g.get_embedding(models_attributes, model_edges)
+
+# g1 = NeuralNetworkGraph.get_graph(embedding, models_attributes, model_edges)
 # print(g.get_embedding(model))
-with open('./tmp_model.py', 'w') as f:
-    f.write('')
+# with open('./tmp_model.py', 'w') as f:
+#     f.write('')
 import tmp_model
-Converter(g1, filepath='./tmp_model.py', model_name='Tmp')
+# Converter(g1, filepath='./tmp_model.py', model_name='Tmp')
 importlib.reload(tmp_model)
 tmp_model.Tmp()(xs)
 kek = 0

@@ -27,7 +27,7 @@ EOS_token = torch.tensor([3000])
 dropout = 0.
 hidden_sizes = 10
 lr = 1e-3
-model = SentenceVAE(MAX_N, 256, 'gru', 128, 0, 0, 30, 0, 3000, 65)
+model = SentenceVAE(MAX_N, 256, 'gru', 128, 0, 0, 30, 0, 3000, 64)
 NLL = torch.nn.NLLLoss(reduction='sum')
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 steps = [0]
@@ -59,8 +59,8 @@ def loss_fn(logp, target, length, mean, logv, anneal_function, step, k, x0):
 def train(loader):
     model.train()
     epoch_loss = 0
-    for i, data in enumerate(loader):
-        data = torch.from_numpy(np.array([data])).long()
+    # for i, data in enumerate(loader):
+        # data = torch.from_numpy(np.array([data])).long()
         # data: (batch_size, embedding_dim, node_dim)
 
         # for row in data[0]:
@@ -71,9 +71,9 @@ def train(loader):
         #     source = torch.cat([SOS_token, source, EOS_token]).view(1, -1)
         #
         #     # TODO: len(source) --> data_len? SOS, EOS?
-        #     logp, mean, logv, z = model(source, torch.tensor(len(source)).view(-1))
+        #     logp, mean, logv, z = model(source, torch.tensor(len(source[0])).view(-1))
         #     NLL_loss, KL_loss, KL_weight = loss_fn(logp, source,
-        #                                            torch.tensor(len(source)).view(-1), mean, logv, 'logistic', steps[0], 0.0025, 2500)
+        #                                            torch.tensor(len(source[0])).view(-1), mean, logv, 'logistic', steps[0], 0.0025, 2500)
         #     loss = (NLL_loss + KL_weight * KL_loss)
         #
         #     optimizer.zero_grad()
@@ -82,15 +82,16 @@ def train(loader):
         #     steps[0] += 1
         #     epoch_loss += loss.item()
 
-    for step in range(5000):
+    for step in range(500):
         optimizer.zero_grad()
         data_len = random.randint(1, 62)
         row = torch.tensor([random.randint(1, 2999) for i in range(data_len)]).long()
-        source = torch.cat([SOS_token, row, EOS_token]).view(1, -1)
+        input = torch.cat([SOS_token, row]).view(1, -1)
+        target = torch.cat([row, EOS_token]).view(1, -1)
 
-        logp, mean, logv, z = model(source, torch.tensor(len(source)).view(-1))
-        NLL_loss, KL_loss, KL_weight = loss_fn(logp, source,
-                                               torch.tensor(len(source)).view(-1), mean, logv, 'logistic', steps[0], 0.0025, 2500)
+        logp, mean, logv, z = model(input, torch.tensor(len(input[0])).view(-1))
+        NLL_loss, KL_loss, KL_weight = loss_fn(logp, target,
+                                               torch.tensor(len(target[0])).view(-1), mean, logv, 'logistic', steps[0], 0.0025, 2500)
         loss = (NLL_loss + KL_weight * KL_loss)
 
         optimizer.zero_grad()
@@ -115,10 +116,12 @@ def evaluate(loader):
                 if data_len <= 0:
                     continue
                 source = row[(ATTRIBUTES_POS_COUNT + 1):(ATTRIBUTES_POS_COUNT + data_len + 1)]
-                source = torch.cat([SOS_token, source, EOS_token]).view(1, -1)
-                logp, mean, logv, z = model(source, torch.tensor(len(source)).view(-1))
-                NLL_loss, KL_loss, KL_weight = loss_fn(logp, source,
-                                                       torch.tensor(len(source)).view(-1), mean, logv, 'logistic', steps[0], 0.0025, 2500)
+                input = torch.cat([SOS_token, source]).view(1, -1)
+                target = torch.cat([source, EOS_token]).view(1, -1)
+
+                logp, mean, logv, z = model(input, torch.tensor(len(input[0])).view(-1))
+                NLL_loss, KL_loss, KL_weight = loss_fn(logp, target,
+                                                       torch.tensor(len(target[0])).view(-1), mean, logv, 'logistic', steps[0], 0.0025, 2500)
                 loss = (NLL_loss + KL_weight * KL_loss)
                 epoch_loss += loss.item()
 
@@ -133,6 +136,7 @@ def epoch_time(start_time, end_time):
 
 
 if __name__ == '__main__':
+    # https://github.com/timbmg/Sentence-VAE
     num_layers = 1  # 2
     N_EPOCHS = 1000
     best_valid_loss_total_mean = float('inf')
@@ -207,14 +211,15 @@ if __name__ == '__main__':
 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-        test_row = torch.tensor([1, 20, 300, 1500, 2900]).long()
-        test_row = torch.cat([SOS_token, test_row, EOS_token]).view(1, -1)
+        test_row = torch.tensor([1, 2, 300, 1500, 2900]).long()
+        test_row = torch.cat([test_row]).view(1, -1)
+        # test_row = test_row.view(1, -1)
         model.eval()
-        _,_,_,z = model(test_row, torch.tensor(len(test_row)).view(-1))
+        _,_,_,z = model(test_row, torch.tensor(len(test_row[0])).view(-1))
         samples, z = model.inference(z=z)
         test_print = []
         for i in range(len(samples[0])):
-            test_print.append(int(samples[0][i].argmax()))
+            test_print.append(int(samples[0][i]))
         print(f'After epoch {epoch + 1}:')
         print(test_print)
 

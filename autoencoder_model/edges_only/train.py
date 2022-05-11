@@ -6,12 +6,12 @@ import time
 import numpy as np
 import torch
 import torch.utils.data
-from torch import optim, float32
+from torch import optim, float32, float64
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 from dataset import EmbeddingDataset
-from autoencoder_model.edges_only.vae import VAE
+from autoencoder_model.edges_only.vae import VAE3
 from graph import attribute_parameters, node_to_ops
 
 
@@ -21,6 +21,7 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
+torch.set_default_tensor_type(torch.DoubleTensor)
 NODE_EMBEDDING_DIMENSION = 113
 ATTRIBUTES_POS_COUNT = 50
 MAX_NODE = 3_000
@@ -29,12 +30,17 @@ eval_losses = []
 test_losses = []
 min_vals = []
 max_vals = []
-
-
-def loss_fn(recon_x, x, mu, logvar):
-    BCE = F.mse_loss(recon_x, x, reduction='sum')
-    KLD = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
-    return BCE + KLD
+pre_hidden_size = 4  # 4
+hidden_size = 2  # 2
+max_attrs = 7
+b1 = 0.5
+b2 = 0.999
+num_layers = 1
+N_EPOCHS = 10000
+dropout = 0
+rnn_hidden_size = 30
+lr = 1e-4
+weight_decay = 1e-5
 
 
 def train(loader, model, optimizer):
@@ -63,17 +69,16 @@ def train(loader, model, optimizer):
     #         optimizer.step()
     #         epoch_loss += loss.item()
 
-    for step in range(5000):
+    for step in range(1000):
         data_len = random.randint(1, 62)
         row = [0.] * 62
         for j in range(data_len):
             row[j] = float(random.randint(1, 2999)) / 3000.
-        row = torch.tensor(row, dtype=float32).view(1, -1)
+        row = torch.tensor(row).view(1, -1)
         source = row
         cnt += 1
         optimizer.zero_grad()
-        outputs, mu, logvar = model(source)
-        loss = loss_fn(outputs, source, mu, logvar)
+        loss, out = model(source, True)
         loss.backward()
         # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
@@ -94,15 +99,14 @@ def evaluate(loader, model):
                 data_len = int(row[ATTRIBUTES_POS_COUNT])
                 if data_len <= 0:
                     continue
-                source = torch.tensor(row[(ATTRIBUTES_POS_COUNT + 1):], dtype=float32).view(1, -1)
+                source = torch.tensor(row[(ATTRIBUTES_POS_COUNT + 1):], dtype=float64).view(1, -1)
                 for j in range(len(source[0])):
                     if source[0][j] == -1.:
                         source[0][j] = 0.
                     else:
-                        source[0][j] = float(source[0][j]) / 3000.
+                        source[0][j] = source[0][j] / 3000.
                 cnt += 1
-                outputs, mu, logvar = model(source)
-                loss = loss_fn(outputs, source, mu, logvar)
+                loss, out = model(source, False)
                 epoch_loss += loss.item()
 
     return epoch_loss / cnt
@@ -117,17 +121,10 @@ def epoch_time(start_time, end_time):
 
 if __name__ == '__main__':
     # https://github__com.teameo.ca/thuyngch/Variational-Autoencoder-PyTorch/blob/master/models/vae.py
-    num_layers = 1
-    N_EPOCHS = 30
-    dropout = 0
-    rnn_hidden_size = 30
-    hidden_size = 64
-    lr = 1e-3
-
     # Local
-    # paths = ['../../', '']
+    paths = ['../../', '']
     # CTlab
-    paths = ['/nfs/home/vshaldin/embeddings/', '/nfs/home/vshaldin/embeddings/autoencoder_model/all_attributes_2/']
+    # paths = ['/nfs/home/vshaldin/embeddings/', '/nfs/home/vshaldin/embeddings/autoencoder_model/all_attributes_2/']
 
     best_valid_loss_total_mean = float('inf')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -148,8 +145,13 @@ if __name__ == '__main__':
                              batch_size=1,
                              shuffle=False)
 
-    model = VAE(shapes=[62, 45, 30, 20]).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    model = VAE3(
+            shapes=[62, 45, 30],
+            init_mean=0,
+            init_std=1. / 3000
+        ).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    model.load_state_dict(torch.load(f'{paths[1]}vae_model.pt'))
 
     with open(f'{paths[0]}data/embeddings/test.json', 'r') as f:
         test_input = json.load(f)
@@ -166,6 +168,14 @@ if __name__ == '__main__':
                         test_input[i][j] /= 3000.
     test_len = len(test_input)
     test_row = torch.tensor(test_input[0][(ATTRIBUTES_POS_COUNT + 1):])
+    test_row[1] = 20. / 3000.
+    test_row[2] = 100. / 3000.
+    test_row[3] = 500. / 3000.
+    test_row[4] = 1000. / 3000.
+    test_row[5] = 1500. / 3000.
+    test_row[6] = 2000. / 3000.
+    test_row[7] = 2500. / 3000.
+    test_row[8] = 2999. / 3000.
 
     best_valid_loss = float('inf')
     train_loss = 0
@@ -180,18 +190,17 @@ if __name__ == '__main__':
         train_loss = 0
         eval_loss = 0
         test_loss = 0
-        train_loss += train(train_loader, model, optimizer)
-        eval_loss += evaluate(test_loader, model)
+        # train_loss += train(train_loader, model, optimizer)
+        # eval_loss += evaluate(test_loader, model)
         end_time = time.time()
 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
         test_row = test_row.view(1, -1)
-        test_outputs, mu, logvar = model(test_row)
-        test_loss = loss_fn(test_outputs, test_row, mu, logvar)
+        test_loss, test_out = model(test_row, False)
         test_loss_change = test_loss - test_loss_last
         test_loss_last = test_loss
-        print(f'After epoch {epoch + 1}:\n{(test_outputs[0] - test_row[0]).tolist()}\n')
+        print(f'After epoch {epoch + 1}:\n{(test_out).tolist()}\n')
 
         train_losses.append(float(train_loss))
         eval_losses.append(float(eval_loss))

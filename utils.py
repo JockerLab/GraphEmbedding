@@ -20,9 +20,11 @@ def normalize_dataset(dataset):
             for j in range(NODE_EMBEDDING_DIMENSION):
                 if j >= ATTRIBUTES_POS_COUNT:
                     continue
-                if dataset[emb][i][j] == -1 or max_vals[j] == -1:
+                if j == attribute_parameters['op']['pos']:
+                    dataset[emb][i][j] = dataset[emb][i][j] / max_vals[j]
+                elif dataset[emb][i][j] == -1 or max_vals[j] == -1:
                     dataset[emb][i][j] = 0.
-                else:
+                elif j not in [attribute_parameters['alpha']['pos'], attribute_parameters['epsilon']['pos'], attribute_parameters['momentum']['pos']]:
                     dataset[emb][i][j] = (dataset[emb][i][j] + 1.) / (max_vals[j] + 1.)
     return dataset
 

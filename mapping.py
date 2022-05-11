@@ -128,7 +128,6 @@ class LayerMapping:
             'stride': tuple(node['strides']) if node.get('strides') else None,
             'padding': new_pads,
             'dilation': tuple(node['dilations']) if node.get('dilations') else None,
-            'groups': node.get('group'),
         }
         for param, value in parameters.items():
             if value:
@@ -144,7 +143,6 @@ class LayerMapping:
             'stride': tuple(node['strides']) if node.get('strides') else None,
             'padding': new_pads,
             'dilation': tuple(node['dilations']) if node.get('dilations') else None,
-            'groups': node.get('group'),
         }
         for param, value in parameters.items():
             if value:

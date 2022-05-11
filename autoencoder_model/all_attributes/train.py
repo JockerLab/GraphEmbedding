@@ -5,11 +5,13 @@ import time
 import numpy as np
 import torch
 import torch.utils.data
-from torch import optim, float32
+from torch import optim, float32, float64
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
+import torch.nn as nn
 
 from dataset import EmbeddingDataset
-from autoencoder_model.all_attributes.autoencoder import VAE
+from autoencoder_model.all_attributes.autoencoder import VAE1, VAE2, VAE3, AE
 from graph import attribute_parameters, node_to_ops
 
 SEED = 1234
@@ -18,6 +20,7 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
+torch.set_default_tensor_type(torch.DoubleTensor)
 NODE_EMBEDDING_DIMENSION = 113
 ATTRIBUTES_POS_COUNT = 50
 MAX_NODE = 3_000
@@ -26,8 +29,18 @@ eval_losses = []
 test_losses = []
 min_vals = []
 max_vals = []
-hidden_size = 2
+pre_hidden_size = 4  # 4
+hidden_size = 2  # 2
 max_attrs = 7
+b1 = 0.5
+b2 = 0.999
+num_layers = 1
+N_EPOCHS = 10000
+dropout = 0
+rnn_hidden_size = 30
+lr = 1e-4
+weight_decay = 1e-5
+
 
 def generate():
     row = [-1.] * ATTRIBUTES_POS_COUNT
@@ -66,15 +79,14 @@ def generate():
             else:
                 value = val[random.randint(1, len(val) - 1)]
             row[id] = value
+    # if random.randint(1, 5) == 1:
+    #     row[19] = 6 # TOOD: remove
     return row
 
 
 def create_sequence(inputs, models, optimizers, train=True):
-    operation_id = round(float(inputs[attribute_parameters['op']['pos']]) * len(node_to_ops) - 1.)
-    try:
-        op_name = str(list(filter(lambda x: node_to_ops[x]['id'] == operation_id, node_to_ops))[0])
-    except IndexError:
-        kek = 0
+    operation_id = round(float(inputs[attribute_parameters['op']['pos']]) * max_vals[attribute_parameters['op']['pos']])
+    op_name = str(list(filter(lambda x: node_to_ops[x]['id'] == operation_id, node_to_ops))[0])
     operation = node_to_ops[op_name]
     result = []
     cnt = 0
@@ -89,12 +101,12 @@ def create_sequence(inputs, models, optimizers, train=True):
             if inputs[ids[i]] == -1. or max_vals[ids[i]] == -1.:
                 sequence.append(0.)
             else:
-                sequence.append(float(inputs[ids[i]]))
+                sequence.append(inputs[ids[i]])
 
         if train:
             optimizers[attribute].zero_grad()
         sequence = torch.tensor(sequence).view(1, -1)
-        loss, out = models[attribute].training_step(sequence)
+        loss, out = models[attribute](sequence, train)
         if train:
             loss.backward()
             optimizers[attribute].step()
@@ -102,11 +114,6 @@ def create_sequence(inputs, models, optimizers, train=True):
         cnt += 1
         sum_loss += loss.item()
         result.extend(out.tolist())
-
-    if len(result) < max_attrs * hidden_size:
-        for i in range(max_attrs * hidden_size - len(result)):
-            result.append(0.)
-
     return sum_loss, cnt, result
 
 
@@ -116,19 +123,23 @@ def train(loader, models, optimizers):
     epoch_loss = 0
     all_cnt = 0
 
-    for i, data in enumerate(loader):
-        for row in data:
-            sum_loss, _, result = create_sequence(row[:ATTRIBUTES_POS_COUNT], models, optimizers)
-            epoch_loss += sum_loss
-            all_cnt += 1
+    # TODO: uncomment
+    # for i, data in enumerate(loader):
+    #     for row in data:
+    #         sum_loss, _, result = create_sequence(row[:ATTRIBUTES_POS_COUNT], models, optimizers)
+    #         epoch_loss += sum_loss
+    #         all_cnt += 1
 
-    for i in range(500):
+    for i in range(1000):
         row = generate()
 
         for j in range(ATTRIBUTES_POS_COUNT):
             if row[j] == -1 or max_vals[j] == -1:
                 row[j] = 0.
-            else:
+            elif j == attribute_parameters['op']['pos']:
+                row[j] = row[j] / max_vals[j]
+            elif j not in [attribute_parameters['alpha']['pos'], attribute_parameters['epsilon']['pos'],
+                               attribute_parameters['momentum']['pos']]:
                 row[j] = (row[j] + 1.) / (max_vals[j] + 1.)
 
         sum_loss, _, result = create_sequence(row, models, optimizers)
@@ -163,17 +174,11 @@ def epoch_time(start_time, end_time):
 if __name__ == '__main__':
     # https://github.com/reoneo97/vae-playground/blob/main/models/vae.py
     # https://towardsdatascience.com/beginner-guide-to-variational-autoencoders-vae-with-pytorch-lightning-13dbc559ba4b
-    num_layers = 1
-    N_EPOCHS = 20
-    dropout = 0
-    rnn_hidden_size = 30
-    lr = 1e-3
-    weight_decay = 1e-5
 
     # Local
-    paths = ['../../', '']
+    paths = ['../../', 'models/']
     # CTlab
-    # paths = ['/nfs/home/vshaldin/embeddings/', '/nfs/home/vshaldin/embeddings/autoencoder_model/all_attributes/']
+    # paths = ['/nfs/home/vshaldin/embeddings/', '/nfs/home/vshaldin/embeddings/autoencoder_model/all_attributes/models/']
 
     best_valid_loss_total_mean = float('inf')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -194,18 +199,13 @@ if __name__ == '__main__':
                              batch_size=1,
                              shuffle=False)
 
-    # Models and optimizers
-    models = {}
-    optimizers = {}
-    for name, attrs in attribute_parameters.items():
-        if name in ['edge_list_len', 'edge_list']:
-            continue
-        models[name] = VAE(shapes=[attrs['len'], 4, hidden_size]).to(device)
-        optimizers[name] = optim.Adam(models[name].parameters(), lr=lr, weight_decay=weight_decay)
-
     # Read test
     with open(f'{paths[0]}data/embeddings/test.json', 'r') as f:
         test_input = json.load(f)
+
+        # TODO:remove
+        # test_input = [[-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0.001, -1, -1, -1, -1, -1, 0.9, 6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]]
+
     vals = []
     if os.path.isfile(f'{paths[0]}data/embeddings/min_max.json'):
         with open(f'{paths[0]}data/embeddings/min_max.json', 'r') as f:
@@ -216,14 +216,16 @@ if __name__ == '__main__':
             for j in range(NODE_EMBEDDING_DIMENSION):
                 if j >= ATTRIBUTES_POS_COUNT:
                     continue
-                if test_input[i][j] == -1 or max_vals[j] == -1:
+                if j == attribute_parameters['op']['pos']:
+                    test_input[i][j] = test_input[i][j] / max_vals[j]
+                elif test_input[i][j] == -1 or max_vals[j] == -1:
                     test_input[i][j] = 0.
-                else:
+                elif j not in [attribute_parameters['alpha']['pos'], attribute_parameters['epsilon']['pos'],
+                                   attribute_parameters['momentum']['pos']]:
                     test_input[i][j] = (test_input[i][j] + 1.) / (max_vals[j] + 1.)
     test_len = len(test_input)
     test_row = test_input[0]
-
-    test_operation_id = round(float(test_row[attribute_parameters['op']['pos']]) * len(node_to_ops) - 1.)
+    test_operation_id = round(float(test_row[attribute_parameters['op']['pos']]) * max_vals[attribute_parameters['op']['pos']])
     op_name = str(list(filter(lambda x: node_to_ops[x]['id'] == test_operation_id, node_to_ops))[0])
     operation = node_to_ops[op_name]
     test_seq = []
@@ -239,8 +241,29 @@ if __name__ == '__main__':
             if test_row[ids[i]] == -1. or max_vals[ids[i]] == -1.:
                 test_seq.append(0.)
             else:
-                test_seq.append(float(test_row[ids[i]]))
+                test_seq.append(test_row[ids[i]])
     test_seq = torch.tensor(test_seq)
+
+
+    # Models and optimizers
+    models = {}
+    optimizers = {}
+    for name, attrs in attribute_parameters.items():
+        if name in ['edge_list_len', 'edge_list']:
+            continue
+        mean = 0.
+        if name in ['alpha', 'epsilon', 'momentum']:
+            std = 1e-4
+        elif name == 'op':
+            std = 1. / max_vals[attrs['pos']]
+        else:
+            std = 1. / (max_vals[attrs['pos'][0] if isinstance(attrs['pos'], list) else attrs['pos']] + 1.)
+        models[name] = VAE3(
+            shapes=[attrs['len'], pre_hidden_size, hidden_size],
+            init_mean=mean,
+            init_std=std
+        ).to(device)
+        optimizers[name] = optim.Adam(models[name].parameters(), lr=attrs['lr'])  # , betas=(b1, b2)
 
     best_valid_loss = float('inf')
     train_loss = 0
@@ -261,11 +284,13 @@ if __name__ == '__main__':
 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-        test_loss, _, test_sequence = create_sequence(test_row[:ATTRIBUTES_POS_COUNT], models, optimizers)
+        for attr, model in models.items():
+            model.eval()
+        test_loss, _, test_sequence = create_sequence(test_row[:ATTRIBUTES_POS_COUNT], models, optimizers, False)
         test_loss_change = test_loss - test_loss_last
         test_loss_last = test_loss
         test_sequence = torch.tensor(test_sequence)
-        print(f'After epoch {epoch + 1}:\n{(test_sequence - test_seq).tolist()}\n')
+        print(f'After epoch {epoch + 1}:\n{(test_sequence).tolist()}\n') # - test_seq
 
         train_losses.append(float(train_loss))
         eval_losses.append(float(eval_loss))

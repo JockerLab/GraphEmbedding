@@ -83,6 +83,16 @@ class SentenceVAE(nn.Module):
         else:
             hidden = hidden.unsqueeze(0)
 
+        # decoder input
+        if self.word_dropout_rate > 0:
+            # randomly replace decoder input with <unk>
+            # prob = torch.rand(input_sequence.size())
+            # if torch.cuda.is_available():
+            #     prob=prob.cuda()
+            # prob[(input_sequence.data - self.sos_idx) * (input_sequence.data - self.pad_idx) == 0] = 1
+            decoder_input_sequence = input_sequence.clone()
+            # decoder_input_sequence[prob < self.word_dropout_rate] = self.unk_idx
+            input_embedding = self.embedding(decoder_input_sequence)
         input_embedding = self.embedding_dropout(input_embedding)
         packed_input = rnn_utils.pack_padded_sequence(input_embedding, sorted_lengths.data.tolist(), batch_first=True)
 
@@ -101,33 +111,6 @@ class SentenceVAE(nn.Module):
         logp = logp.view(b, s, self.embedding.num_embeddings)
 
         return logp, mean, logv, z
-
-    def encode(self, input_sequence, length):
-        batch_size = input_sequence.size(0)
-        sorted_lengths, sorted_idx = torch.sort(length, descending=True)
-        input_sequence = input_sequence[sorted_idx]
-
-        # ENCODER
-        input_embedding = self.embedding(input_sequence)
-
-        packed_input = rnn_utils.pack_padded_sequence(input_embedding, sorted_lengths.data.tolist(), batch_first=True)
-
-        _, hidden = self.encoder_rnn(packed_input)
-
-        if self.bidirectional or self.num_layers > 1:
-            # flatten hidden state
-            hidden = hidden.view(batch_size, self.hidden_size * self.hidden_factor)
-        else:
-            hidden = hidden.squeeze()
-
-        # REPARAMETERIZATION
-        mean = self.hidden2mean(hidden)
-        logv = self.hidden2logv(hidden)
-        std = torch.exp(0.5 * logv)
-
-        z = to_var(torch.randn([batch_size, self.latent_size]))
-        z = z * std + mean
-        return z
 
     def inference(self, n=4, z=None):
 
@@ -153,7 +136,7 @@ class SentenceVAE(nn.Module):
         # idx of still generating sequences with respect to current loop
         running_seqs = torch.arange(0, batch_size, out=self.tensor()).long()
 
-        generations = self.tensor(batch_size, self.max_sequence_length).fill_(self.eos_idx).long()
+        generations = self.tensor(batch_size, self.max_sequence_length).fill_(self.sos_idx).long()
 
         t = 0
         while t < self.max_sequence_length and len(running_seqs) > 0:
