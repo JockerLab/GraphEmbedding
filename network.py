@@ -1,10 +1,15 @@
+import json
+
+import timm
 import torch
-import sys
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 import torch.nn.functional as F
+import torchvision.models as models
+from Experiments.resnets.resnet18 import ConvertResnet
+from Experiments.resnets.naive_resnet18 import NaiveConvertResnet
 
 
 class NeuralNetwork(nn.Module):
@@ -28,14 +33,14 @@ def load_data(dataset):
     training_data = dataset(
         root="data",
         train=True,
-        download=True,
+        download=False,
         transform=ToTensor(),
     )
 
     test_data = dataset(
         root="data",
         train=False,
-        download=True,
+        download=False,
         transform=ToTensor(),
     )
 
@@ -48,20 +53,23 @@ def load_data(dataset):
 
 def train(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
+    num_batches = len(dataloader)
     model.train()
-    for batch, (X, y) in enumerate(dataloader):
-        # Compute prediction error
+    test_loss, correct = 0, 0
+    for X, y in dataloader:
         pred = model(X)
         loss = loss_fn(pred, y)
-
-        # Backpropagation
+        test_loss += loss.item()
+        correct += (pred.argmax(1) == y).type(torch.float).sum().item()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        if batch % 100 == 0:
-            loss, current = loss.item(), batch * len(X)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+
+    test_loss /= num_batches
+    correct /= size
+    print(f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    return test_loss
 
 
 def test(dataloader, model, loss_fn):
@@ -78,14 +86,17 @@ def test(dataloader, model, loss_fn):
     test_loss /= num_batches
     correct /= size
     print(f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    return test_loss
 
 
 if __name__ == '__main__':
-    args = sys.argv[1:]
-
     # train_dataloader, test_dataloader = load_data(datasets.MNIST)
     train_dataloader, test_dataloader = load_data(datasets.CIFAR10)
-    model = NeuralNetwork()
+    models = {
+        'origin': models.resnet18(num_classes=10),
+        # 'naive': NaiveConvertResnet(),
+        # 'convert': ConvertResnet()
+    }
     # model = ConvertedAlexNet()
 
     # model.load_state_dict(torch.load("models/model.pth"))
@@ -93,20 +104,25 @@ if __name__ == '__main__':
     # summary(model, input_size=(1, 28, 28))
     # print(model)
 
-    for i in range(len(args)):
-        if args[i] == '--train':
-            loss_fn = nn.CrossEntropyLoss()
-            optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    for model_name, model in models.items():
+        train_losses = []
+        test_losses = []
 
-            epochs = 5
-            for t in range(epochs):
-                print(f"Epoch {t + 1}\n-------------------------------")
-                train(train_dataloader, model, loss_fn, optimizer)
-                test(test_dataloader, model, loss_fn)
-            print("Done!")
+        loss_fn = nn.CrossEntropyLoss()
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
 
-            torch.save(model.state_dict(), "model.pth")
-            print("Saved PyTorch Model State to model.pth")
+        epochs = 20
+        for t in range(epochs):
+            print(f"Epoch {t + 1}\n-------------------------------")
+            train_loss = train(train_dataloader, model, loss_fn, optimizer)
+            test_loss = test(test_dataloader, model, loss_fn)
+            train_losses.append(train_loss)
+            test_losses.append(test_loss)
+            with open(f'Experiments/{model_name}_losses.json', 'w') as f:
+                f.write(json.dumps({'train': train_losses, 'test': test_losses}))
 
-        if args[i] == '--distill':
-            pass
+            torch.save(model.state_dict(), f'Experiments/{model_name}_model.pt')
+        print("Done!")
+
+        print("Saved PyTorch Model State to model.pth")
+

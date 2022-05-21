@@ -41,10 +41,10 @@ def train(loader, model):
     model.train()
     epoch_loss = 0.
     for i, data in enumerate(loader):
-        data = torch.from_numpy(np.array([data])).long()
+        data = torch.LongTensor(data)
         # data: (batch_size, embedding_dim, node_dim)
 
-        for row in data[0]:
+        for row in data:
             data_len = int(row[ATTRIBUTES_POS_COUNT])
             if data_len <= 0:
                 continue
@@ -56,17 +56,6 @@ def train(loader, model):
             # output: (embedding_dim, batch_size, node_dim)
             epoch_loss += loss
 
-    for step in range(500):
-        data_len = random.randint(2, 62)
-        row = torch.tensor([random.randint(1, 2999) for i in range(data_len)]).long()
-        source = row
-        # source: (batch_size, embedding_dim, node_dim)
-        # target: (batch_size, embedding_dim, node_dim)
-        source = torch.cat([SOS_token, source, EOS_token])
-        loss, outputs = model.train_batch(source)
-        # output: (embedding_dim, batch_size, node_dim)
-        epoch_loss += loss
-
     return epoch_loss
 
 
@@ -75,10 +64,10 @@ def evaluate(loader, model):
     epoch_loss = 0
     with torch.no_grad():
         for i, data in enumerate(loader):
-            data = torch.from_numpy(np.array([data])).long()
+            data = torch.LongTensor(data)
             # data: (batch_size, embedding_dim, node_dim)
 
-            for row in data[0]:
+            for row in data:
                 data_len = int(row[ATTRIBUTES_POS_COUNT])
                 if data_len <= 0:
                     continue
@@ -104,7 +93,7 @@ if __name__ == '__main__':
     # https://github.com/chrisvdweth/ml-toolkit/blob/master/pytorch/models/text/autoencoder/textrnnae.py
     # https://github.com/chrisvdweth/ml-toolkit/tree/master/pytorch/notebooks
     num_layers = 1
-    N_EPOCHS = 20
+    N_EPOCHS = 10
     dropout = 0
     rnn_hidden_size = 30
     hidden_size = 64

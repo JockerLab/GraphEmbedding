@@ -184,7 +184,7 @@ if __name__ == '__main__':
     # test_input = torch.cat([SOS_token, test_input[0, 0, (ATTRIBUTES_POS_COUNT + 1):]], 1)
 
     # all_losses = []
-    # with open(f'losses.json', 'r') as f:
+    # with open(f'attributes_losses.json', 'r') as f:
     #     all_losses = json.load(f)
     #
     # train_losses = all_losses['train']

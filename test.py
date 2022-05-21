@@ -2,34 +2,13 @@
 import importlib
 import json
 import os
-import zipfile
-import timeit
-from pytorchcv.model_provider import get_model as ptcv_get_model, _models as ptcv_models
-from KD_Lib.models import ResNet18, LeNet, Shallow, ModLeNet, LSTMNet, NetworkInNetwork
 from autoencoder_model.edges_only.vae import VAE3 as edges_VAE
 from autoencoder_model.all_attributes.autoencoder import VAE3 as attributes_VAE
-from torchvision.models import alexnet, resnet101, densenet201, googlenet, inception_v3, mnasnet1_3, mobilenet_v3_large, squeezenet1_1, vgg19_bn
 
 from convert import Converter
 from graph import NeuralNetworkGraph
-from models.generated.generated_models import *
-from models.original.original_unet import UNet
-from network import NeuralNetwork
-from torch.utils.data import DataLoader
-from torchvision.transforms import ToTensor, transforms
-from torchvision import datasets
 import torch
-from torchvision import datasets, transforms as T
 import torchvision.models as models
-import timm
-from timm.models.resnet import ResNet, BasicBlock, Bottleneck
-import numpy as np
-from seq_to_seq.attributes_only.decoder import DecoderRNNAttributes
-from seq_to_seq.attributes_only.encoder import EncoderRNNAttributes
-from seq_to_seq.attributes_only.seq2seq import Seq2SeqAttributes
-from seq_to_seq.edges_only.decoder import DecoderRNNEdges
-from seq_to_seq.edges_only.encoder import EncoderRNNEdges
-from seq_to_seq.edges_only.seq2seq import Seq2SeqEdges
 from graph import attribute_parameters
 
 # models = {
@@ -134,21 +113,20 @@ for name, attrs in attribute_parameters.items():
 # out_embed = model_attributes.decode(embed, data_len)
 
 
-xs = torch.zeros([64, 3, 224, 224])
+xs = torch.zeros([1, 3, 224, 224])
 model = models.resnet18()
-# g = NeuralNetworkGraph(model=model, test_batch=xs)
-# embedding = g.get_embedding(models_attributes, model_edges)
+g = NeuralNetworkGraph(model=model, test_batch=xs)
 
-# g1 = NeuralNetworkGraph.get_graph(embedding, models_attributes, model_edges)
 # print(g.get_embedding(model))
-# with open('./tmp_model.py', 'w') as f:
-#     f.write('')
-import tmp_model
-# Converter(g1, filepath='./tmp_model.py', model_name='Tmp')
+with open('tmp_model.py', 'w') as f:
+    f.write('')
+from Experiments import tmp_model
+
+Converter(g, filepath='tmp_model.py', model_name='Tmp')
 importlib.reload(tmp_model)
 tmp_model.Tmp()(xs)
 kek = 0
-os.remove('./tmp_model.py')
+os.remove('tmp_model.py')
 
 
 # import tmp_model

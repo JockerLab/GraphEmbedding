@@ -158,7 +158,7 @@ if __name__ == '__main__':
     lr = 1e-3
 
     # all_losses = []
-    # with open(f'losses.json', 'r') as f:
+    # with open(f'attributes_losses.json', 'r') as f:
     #     all_losses = json.load(f)
     #
     # train_losses = all_losses['train']

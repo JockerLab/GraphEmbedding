@@ -187,7 +187,7 @@ if __name__ == '__main__':
     weight_decay = 1e-4
 
     # all_losses = []
-    # with open(f'losses.json', 'r') as f:
+    # with open(f'attributes_losses.json', 'r') as f:
     #     all_losses = json.load(f)
     #
     # train_losses = all_losses['train']

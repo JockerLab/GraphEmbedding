@@ -151,7 +151,7 @@ if __name__ == '__main__':
     optim_func = optim.Adam
 
     # all_losses = []
-    # with open(f'losses.json', 'r') as f:
+    # with open(f'attributes_losses.json', 'r') as f:
     #     all_losses = json.load(f)
     #
     # train_losses = all_losses['train']
