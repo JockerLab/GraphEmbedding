@@ -7,8 +7,10 @@ import time
 import numpy as np
 import torch
 import torch.utils.data
-from torch import optim, float32, float64
+from torch import optim, float32, float64, int64
+from torch.optim.lr_scheduler import ReduceLROnPlateau, OneCycleLR
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 import torch.nn.functional as F
 
 from dataset import EmbeddingDataset
@@ -37,48 +39,70 @@ max_attrs = 7
 b1 = 0.5
 b2 = 0.999
 num_layers = 1
-N_EPOCHS = 10000
+N_EPOCHS = 300
 dropout = 0
 rnn_hidden_size = 30
-lr = 1e-4
+lr = 1e-3
 weight_decay = 1e-5
-dataset = []
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+class GraphDataset(Dataset):
+    def __init__(self):
+        self.dataset = []
+        for i in range(1_000):
+            row = [0.] * MAX_NODE
+            for j in range(MAX_NODE):
+                row[j] = 1. if random.random() > 0.5 else 0.
+            self.dataset.append(torch.tensor(row, dtype=float64).to(device))
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        return self.dataset[idx]
 
 
 def get_edge_list(line):
-    row = [0.] * 8
-    list = []
-    for i in range(8):
-        if line[i] > 0:
-            list.append(i)
-    for i in range(len(list)):
-        row[i] = list[i] / 8.
-    return row
+    rows = torch.tensor([], dtype=int64)
+    for i in range(len(line)):
+        list = []
+        row = [0] * 8
+        for j in range(8):
+            if line[i][j] > 0:
+                list.append(j)
+        for j in range(len(list)):
+            row[j] = list[j]  # / 8.
+        row = torch.LongTensor([row])
+        rows = torch.cat([rows, row])
+    return rows
 
 
-def train(model, optimizer):
+def train(model, optimizer, loader):
     model.train()
     epoch_loss = 0
     BCE_loss = 0
     KLD_loss = 0
     cnt = 0
+    losses = 0
 
-    for step in range(len(dataset)):
-        cnt += 1
-        for i in range(8):
-            row = get_edge_list(dataset[step][0].get_adjacency()[i])
-            row = torch.tensor(row).view(1, -1)
-            source = row
-            optimizer.zero_grad()
-            loss, BCE, KLD, out = model(source, True)
-            loss.backward()
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-            optimizer.step()
-            epoch_loss += loss.item()
-            BCE_loss += BCE.item()
-            KLD_loss += KLD.item()
+    optimizer.zero_grad()
+    for i, data in enumerate(loader):
+        # row = data.unsqueeze(0)
+        # rows = get_edge_list(data.tolist())
+        source = data
+        optimizer.zero_grad()
+        loss, BCE, KLD, out = model(source, True)
+        losses += loss
+        loss.backward()
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        optimizer.step()
+        epoch_loss += loss.item()
+        BCE_loss += BCE.item()
+        KLD_loss += KLD.item()
 
-    return epoch_loss / cnt, BCE_loss / cnt, KLD_loss / cnt
+    return epoch_loss / len(loader), BCE_loss / len(loader), KLD_loss / len(loader)
 
 
 def evaluate(loader, model):
@@ -121,12 +145,9 @@ if __name__ == '__main__':
     # paths = ['/nfs/home/vshaldin/embeddings/', '/nfs/home/vshaldin/embeddings/autoencoder_model/all_attributes_2/']
 
     best_valid_loss_total_mean = float('inf')
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    with open(f'{paths[0]}data/final_structures6.pkl', 'rb') as f:
-        train_data, test_data, graph_args = pickle.load(f)
-    dataset.extend(train_data)
-    dataset.extend(test_data)
+    dataset = GraphDataset()
+    loader = DataLoader(dataset=dataset, batch_size=32)  # , num_workers=2
 
     # train_dataset = EmbeddingDataset(
     #     root=f'{paths[0]}data/embeddings/',
@@ -146,71 +167,45 @@ if __name__ == '__main__':
     #                          shuffle=False)
 
     model = VAE3(
-            shapes=[8, 6, 4],
+            shapes=[62, 45, 30],
             init_mean=0,
-            init_std=1. / 8
+            init_std=1. / 3000
         ).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=5, verbose=True)
+    # scheduler = OneCycleLR(optimizer, max_lr=0.1, total_steps=N_EPOCHS)
+
     # model.load_state_dict(torch.load(f'{paths[1]}test_vae_model.pt'))
-
-    # with open(f'{paths[0]}data/embeddings/test.json', 'r') as f:
-    #     test_input = json.load(f)
-    # vals = []
-    # if os.path.isfile(f'{paths[0]}data/embeddings/min_max.json'):
-    #     with open(f'{paths[0]}data/embeddings/min_max.json', 'r') as f:
-    #         vals = json.load(f)
-    #     for i in range(len(test_input)):
-    #         for j in range(NODE_EMBEDDING_DIMENSION):
-    #             if j > ATTRIBUTES_POS_COUNT:
-    #                 if test_input[i][j] == -1:
-    #                     test_input[i][j] = 0.
-    #                 else:
-    #                     test_input[i][j] = max(1., test_input[i][j] / 8.)
-    # test_len = len(test_input)
-    # test_row = torch.tensor(test_input[0][(ATTRIBUTES_POS_COUNT + 1):])
-    # test_row[0] = 7. / 8.
-    # test_row[1] = 8. / 8.
-    # test_row[2] = 1. / 8.
-    # test_row[3] = 2. / 8.
-    # test_row[4] = 3. / 8.
-    # test_row[5] = 4. / 8.
-    # test_row[6] = 5. / 8.
-    # test_row[7] = 6. / 8.
-    # test_row[8] = 8. / 8.
-
-    # best_valid_loss = float('inf')
-    # train_loss = 0
-    # eval_loss = 0
-    # test_loss_change = 0
-    # test_loss_last = 0
-    #
-    # print(f'Testing:\n{test_row[:8].tolist()}\n')
-    N_EPOCHS = 10
 
     for epoch in range(N_EPOCHS):
         start_time = time.time()
-        total_loss, recon_loss, kl_loss = train(model, optimizer)
+        total_loss, recon_loss, kl_loss = train(model, optimizer, loader)
         end_time = time.time()
 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
-
-        # test_row = test_row[:8].view(1, -1)
-        # test_loss, test_out = model(test_row, False)
-        # test_loss_change = test_loss - test_loss_last
-        # test_loss_last = test_loss
-        # test_out = test_out[:8].tolist()
-        # for i in range(8):
-        #     test_out[i] = round(float(test_out[i]) * 8.)
-        # print(f'After epoch {epoch + 1}:\n{test_out}\n')
-
 
         recon_losses.append(float(recon_loss))
         kl_losses.append(float(kl_loss))
         total_losses.append(float(total_loss))
 
-        with open(f'{paths[0]}Experiments/MY/edge_losses.json', 'w') as f:
+        with open(f'edge_losses.json', 'w') as f:
             f.write(json.dumps({'total': total_losses, 'recon': recon_losses, 'kl': kl_losses}))
 
-        torch.save(model.state_dict(), f'{paths[0]}Experiments/MY/edge_model.pt')
+        torch.save(model.state_dict(), f'edge_model.pt')
         print(f'Epoch: {epoch + 1:02} | Time: {epoch_mins}m {epoch_secs}s')
-        print(f'\tRecon Loss: {recon_loss:.3f} | KL Loss: {kl_loss:.3f}\n')
+        print(f'\tRecon Loss: {recon_loss:.3f} | KL Loss: {kl_loss:.3f}')
+
+        # Reduce lr step
+        scheduler.step(total_loss)
+        # scheduler.step()
+
+        test_row = [0.] * MAX_NODE
+        test_row[1] = 1.
+        test_row[2] = 1.
+        test_row[3] = 1.
+        test_row = torch.tensor([test_row])
+        test_loss, test_bce, test_kld, test_out = model(test_row, False)
+        # test_out = test_out.argmax(dim=2)
+        for i in range(10):
+            test_out[0][i] = 1. if test_out[0][i] > 0.5 else 0.
+        print(f'After epoch {epoch + 1}:\n{test_out.tolist()[0][:10]}\n')

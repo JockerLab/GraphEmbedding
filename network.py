@@ -1,6 +1,5 @@
 import json
 
-import timm
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -8,8 +7,6 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 import torch.nn.functional as F
 import torchvision.models as models
-from Experiments.resnets.resnet18 import ConvertResnet
-from Experiments.resnets.naive_resnet18 import NaiveConvertResnet
 
 
 class NeuralNetwork(nn.Module):

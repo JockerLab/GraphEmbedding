@@ -24,7 +24,7 @@ with open('Experiments/resnets/naive_losses.json', 'r') as f:
     naive_test = vals['test']
 origin_train = []
 origin_test = []
-with open('Experiments/resnets/origin_losses.json', 'r') as f:
+with open('Experiments/resnets/origin/origin_losses.json', 'r') as f:
     vals = json.load(f)
     origin_train = vals['train']
     origin_test = vals['test']

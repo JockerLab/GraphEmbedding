@@ -66,7 +66,7 @@ attribute_parameters = {
     "kernel_shape": {'len': 2, 'pos': [15, 16], 'type': 'int', 'range': [-1, 11], 'default': [1, 1], 'lr': 1e-3},
     "mode": {'len': 1, 'pos': 17, 'type': 'int', 'range': [-1, len(pads_to_mods)], 'default': 0, 'lr': 1e-3},
     "momentum": {'len': 1, 'pos': 18, 'type': 'float', 'range': [-1., 1.], 'default': 0.9, 'lr': 1e-3},
-    "op": {'len': 1, 'pos': 19, 'type': 'int', 'range': [0, len(node_to_ops)], 'default': 0, 'lr': 1e-3},
+    "op": {'len': 1, 'pos': 19, 'type': 'int', 'range': [0, len(node_to_ops)], 'default': 0, 'lr': 1e-4},
     "output_shape": {'len': 4, 'pos': [20, 21, 22, 23], 'type': 'int', 'range': [-1, 802816],
                      'default': [-1, -1, -1, -1], 'lr': 1e-5},
     "pads": {'len': 8, 'pos': [24, 25, 26, 27, 28, 29, 30, 31], 'type': 'int', 'range': [-1, 2],

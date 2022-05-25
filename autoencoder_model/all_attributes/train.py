@@ -7,7 +7,8 @@ import numpy as np
 import torch
 import torch.utils.data
 from torch import optim, float32, float64
-from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 import torch.nn as nn
 
@@ -30,18 +31,48 @@ kl_losses = []
 total_losses = []
 min_vals = []
 max_vals = []
-pre_hidden_size = 1  # 4
-hidden_size = 1  # 2
+pre_hidden_size = 4  # 4
+hidden_size = 2  # 2
 max_attrs = 7
 b1 = 0.5
 b2 = 0.999
 num_layers = 1
-N_EPOCHS = 10000
+N_EPOCHS = 300
 dropout = 0
 rnn_hidden_size = 30
-lr = 1e-4
+lr = 1e-3
 weight_decay = 1e-5
-dataset = []
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+class GraphDataset(Dataset):
+    def __init__(self):
+        self.dataset = []
+        with open(f'{paths[0]}data/final_structures6.pkl', 'rb') as f:
+            train_data, test_data, graph_args = pickle.load(f)
+            for i in range(len(train_data)):
+                for j in range(8):
+                    self.dataset.append(
+                        torch.tensor(to_one_hot(train_data[i][0].vs[j]['type']), dtype=float64).to(device)
+                    )
+            for i in range(len(test_data)):
+                for j in range(8):
+                    self.dataset.append(
+                        torch.tensor(to_one_hot(test_data[i][0].vs[j]['type']), dtype=float64).to(device)
+                    )
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        return self.dataset[idx]
+
+
+def to_one_hot(num):
+    result = [0.] * 8
+    result[num] = 1.
+    return result
 
 
 def generate():
@@ -119,29 +150,31 @@ def create_sequence(inputs, models, optimizers, train=True):
     return sum_loss, cnt, result
 
 
-def train(models, optimizers):
+def train(models, optimizers, loader):
     for attr, model in models.items():
         model.train()
     epoch_loss = 0
     cnt = 0
     BCE_loss = 0
     KLD_loss = 0
+    losses = 0
 
-    for step in range(len(dataset)):
-        cnt += 1
-        for i in range(8):
-            row = [float(dataset[step][0].vs[i]['type']) / 7.]
-            row = torch.tensor(row).view(1, -1)
-            optimizers['op'].zero_grad()
-            loss, BCE, KLD, out = models['op'](row, True)
-            loss.backward()
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-            optimizers['op'].step()
-            epoch_loss += loss.item()
-            BCE_loss += BCE.item()
-            KLD_loss += KLD.item()
+    optimizers['op'].zero_grad()
+    for i, data in enumerate(loader):
+        # row = data.unsqueeze(0)
+        # rows = get_edge_list(data.tolist())
+        source = data
+        optimizers['op'].zero_grad()
+        loss, BCE, KLD, out = models['op'](source, True)
+        losses += loss
+        loss.backward()
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        optimizers['op'].step()
+        epoch_loss += loss.item()
+        BCE_loss += BCE.item()
+        KLD_loss += KLD.item()
 
-    return epoch_loss / cnt, BCE_loss / cnt, KLD_loss / cnt
+    return epoch_loss / len(dataset), BCE_loss / len(dataset), KLD_loss / len(dataset)
 
 
 def evaluate(loader, models):
@@ -175,8 +208,10 @@ if __name__ == '__main__':
     # CTlab
     # paths = ['/nfs/home/vshaldin/embeddings/', '/nfs/home/vshaldin/embeddings/autoencoder_model/all_attributes/models/']
 
+    dataset = GraphDataset()
+    loader = DataLoader(dataset=dataset, batch_size=32)
+
     best_valid_loss_total_mean = float('inf')
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # train_dataset = EmbeddingDataset(
     #     root=f'{paths[0]}data/embeddings/',
     #     train=True,
@@ -193,11 +228,6 @@ if __name__ == '__main__':
     # test_loader = DataLoader(dataset=test_dataset,
     #                          batch_size=1,
     #                          shuffle=False)
-
-    with open(f'{paths[0]}data/final_structures6.pkl', 'rb') as f:
-        train_data, test_data, graph_args = pickle.load(f)
-    dataset.extend(train_data)
-    dataset.extend(test_data)
 
     # Read test
     # with open(f'{paths[0]}data/embeddings/test.json', 'r') as f:
@@ -248,23 +278,27 @@ if __name__ == '__main__':
     # Models and optimizers
     models = {}
     optimizers = {}
+    schedulers = {}
     for name, attrs in attribute_parameters.items():
         if name in ['edge_list_len', 'edge_list']:
             continue
         mean = 0.
-        if name in ['alpha', 'epsilon', 'momentum']:
-            std = 1e-4
-        elif name == 'op':
-            std = 1. / 7. # / max_vals[attrs['pos']]
-        else:
-            std = 1.
+        std = 1.
+        # if name in ['alpha', 'epsilon', 'momentum']:
+        #     std = 1e-4
+        # elif name == 'op':
+        #     std = 1. / 7. # / max_vals[attrs['pos']]
+        # else:
+        #     std = 1.
             # std = 1. / (max_vals[attrs['pos'][0] if isinstance(attrs['pos'], list) else attrs['pos']] + 1.)
         models[name] = VAE3(
-            shapes=[attrs['len'], pre_hidden_size, hidden_size],
+            shapes=[8, pre_hidden_size, hidden_size],
             init_mean=mean,
-            init_std=std
+            init_std=std,
+            vocab_size=8,
         ).to(device)
         optimizers[name] = optim.Adam(models[name].parameters(), lr=attrs['lr'])  # , betas=(b1, b2)
+        schedulers[name] = ReduceLROnPlateau(optimizers[name], 'min', factor=0.1, patience=5, verbose=True)
 
     # best_valid_loss = float('inf')
     # train_loss = 0
@@ -274,10 +308,9 @@ if __name__ == '__main__':
 
     # print(f'Testing:\n{test_seq.tolist()}\n')
 
-    N_EPOCHS = 10
     for epoch in range(N_EPOCHS):
         start_time = time.time()
-        total_loss, recon_loss, kl_loss = train(models, optimizers)
+        total_loss, recon_loss, kl_loss = train(models, optimizers, loader)
         end_time = time.time()
 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
@@ -301,5 +334,15 @@ if __name__ == '__main__':
         print(f'\tRecon Loss: {recon_loss:.3f} | KL Loss: {kl_loss:.3f}\n')
 
         torch.save(models['op'].state_dict(), f'{paths[0]}Experiments/MY/attributes_model_op.pt')
+
+        schedulers['op'].step(total_loss)  # TODO: all
+        test_row = torch.tensor([to_one_hot(3)])
+        test_loss, test_bce, test_kld, test_out = models['op'](test_row, False)
+        # test_out = test_out.argmax(dim=2)
+        test_result = []
+        for i in range(8):
+            if test_out[0][i] > 0.5:
+                test_result.append(i)
+        print(f'After epoch {epoch + 1}:\n{test_result}\n')
 
     # torch.save(model.state_dict(), 'seq2seq_model.pt')

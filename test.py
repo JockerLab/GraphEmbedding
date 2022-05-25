@@ -114,17 +114,18 @@ for name, attrs in attribute_parameters.items():
 
 
 xs = torch.zeros([1, 3, 224, 224])
-model = models.resnet18()
+from Experiments.alexnets.origin.original_alexnet import AlexNet as OriginalAlexNet
+model = OriginalAlexNet(num_classes=10)
 g = NeuralNetworkGraph(model=model, test_batch=xs)
 
-# print(g.get_embedding(model))
-with open('tmp_model.py', 'w') as f:
-    f.write('')
-from Experiments import tmp_model
+embedding = g.get_embedding(models_attributes, model_edges)
+g1 = NeuralNetworkGraph.get_graph(embedding, models_attributes, model_edges)
 
-Converter(g, filepath='tmp_model.py', model_name='Tmp')
-importlib.reload(tmp_model)
-tmp_model.Tmp()(xs)
+# print(g.get_embedding(model))
+
+Converter(g1, filepath='Experiments/alexnets/compressed/compressed_alexnet.py', model_name='AlexNet')
+from Experiments.alexnets.compressed.compressed_alexnet import AlexNet as CompressedAlexNet
+CompressedAlexNet()(xs)
 kek = 0
 os.remove('tmp_model.py')
 
