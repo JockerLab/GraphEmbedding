@@ -99,8 +99,8 @@ if __name__ == '__main__':
     train_dataloader, test_dataloader = load_data(datasets.CIFAR10)
     models = {
         # 'origin': OriginalAlexNet(num_classes=10).to(device),
-        'naive': NaiveAlexNet().to(device),
-        # 'compressed': CompressedAlexNet().to(device)
+        # 'naive': NaiveAlexNet().to(device),
+        'compressed': CompressedAlexNet().to(device)
     }
     # model = ConvertedAlexNet()
 
@@ -114,21 +114,21 @@ if __name__ == '__main__':
         test_losses = []
 
         loss_fn = nn.CrossEntropyLoss().to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-        scheduler = OneCycleLR(optimizer, max_lr=0.1, total_steps=100)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+        # scheduler = OneCycleLR(optimizer, max_lr=0.1, total_steps=100)
 
-        epochs = 100
+        epochs = 50
         for t in range(epochs):
-            print(f"Epoch {t + 1}  Learning_Rate {scheduler.get_last_lr()} \n-------------------------------")
+            print(f"Epoch {t + 1} \n-------------------------------") #  Learning_Rate {scheduler.get_last_lr()}
             train_loss = train(train_dataloader, model, loss_fn, optimizer)
             test_loss = test(test_dataloader, model, loss_fn)
             train_losses.append(train_loss)
             test_losses.append(test_loss)
-            with open(f'Experiments/alexnets/{model_name}/{model_name}_losses.json', 'w') as f:
+            with open(f'Experiments/alexnets/{model_name}/{model_name}2_losses.json', 'w') as f:
                 f.write(json.dumps({'train': train_losses, 'test': test_losses}))
 
-            torch.save(model.state_dict(), f'Experiments/alexnets/{model_name}/{model_name}_model.pt')
-            scheduler.step()
+            torch.save(model.state_dict(), f'Experiments/alexnets/{model_name}/{model_name}2_model.pt')
+            # scheduler.step()
         print("Done!")
 
         print("Saved PyTorch Model State to model.pth")

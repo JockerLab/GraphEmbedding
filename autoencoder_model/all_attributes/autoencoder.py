@@ -165,7 +165,7 @@ class VAE3(nn.Module):
         return loss, x.view(-1)
 
     def loss_function(self, input, output, mu, gamma, batch_size=1):
-        BCE = F.binary_cross_entropy(output, input)
+        BCE = F.mse_loss(output, input) # binary_cross_entropy
         KLD = -0.5 * torch.sum(1 + gamma - mu.pow(2) - gamma.exp())
         KLD /= batch_size * self.shapes[0]
         return BCE + KLD
